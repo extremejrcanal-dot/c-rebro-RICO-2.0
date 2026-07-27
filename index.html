@@ -97,7 +97,6 @@ input{
 }
 input:focus{outline:none;border-color:var(--acento-escuro)}
 input::placeholder{color:var(--txt-3)}
-.codigo{text-align:center;letter-spacing:.5em;font-size:24px;font-weight:600;padding-left:.5em}
 label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:9px}
 .campo{margin-bottom:18px}
 
@@ -114,6 +113,7 @@ label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:9px}
 .erro{
   background:rgba(196,98,45,.11);border:1px solid rgba(196,98,45,.35);
   color:#e8a882;padding:13px 16px;border-radius:11px;font-size:14.5px;margin-bottom:18px;
+  line-height:1.55;
 }
 
 /* ---------- mapa das fases ---------- */
@@ -222,23 +222,12 @@ label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:9px}
 
     <div id="login-erro"></div>
 
-    <div id="passo-email">
-      <div class="campo">
-        <label for="in-email">E-mail</label>
-        <input type="email" id="in-email" placeholder="seu@email.com" autocomplete="email" inputmode="email">
-      </div>
-      <button class="btn btn-1" id="btn-enviar">Receber código</button>
-      <p class="aviso">Você vai receber um código de 6 dígitos por e-mail. Não precisa criar senha.</p>
+    <div class="campo">
+      <label for="in-email">E-mail</label>
+      <input type="email" id="in-email" placeholder="seu@email.com" autocomplete="email" inputmode="email">
     </div>
-
-    <div id="passo-codigo" style="display:none">
-      <div class="campo">
-        <label for="in-codigo">Código enviado para <b id="email-eco"></b></label>
-        <input type="text" id="in-codigo" class="codigo" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-      </div>
-      <button class="btn btn-1" id="btn-validar">Entrar</button>
-      <button class="btn btn-3" id="btn-voltar-email">Usar outro e-mail</button>
-    </div>
+    <button class="btn btn-1" id="btn-entrar">Entrar</button>
+    <p class="aviso">Sem senha e sem código. Use o mesmo e-mail que você usou no checkout.</p>
   </section>
 
   <!-- ============ MAPA DAS FASES ============ -->
@@ -349,8 +338,8 @@ label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:9px}
 <script>
 /* ==========================================================
    CONFIGURAÇÃO
-   Não edite aqui. Os dois valores ficam no arquivo config.js.
-   Vazios = MODO DEMO (sem backend, progresso só neste aparelho).
+   Não edite aqui. Os valores ficam no arquivo config.js.
+   Sem SUPABASE_URL = MODO DEMO (só neste aparelho).
    ========================================================== */
 const CONFIG = window.CEREBRO_RICO || { SUPABASE_URL: "", SUPABASE_ANON_KEY: "" };
 
@@ -360,8 +349,8 @@ const CONFIG = window.CEREBRO_RICO || { SUPABASE_URL: "", SUPABASE_ANON_KEY: "" 
 const App = {
   email: null,
   nivel: null,           // protocolo21 | protocolo90 | assinante
-  modo: "demo",          // "demo" | "supabase"
-  sb: null,
+  token: null,
+  modo: "demo",          // "demo" | "online"
   prog: null             // { inicio, dias:{}, falhas:[] }
 };
 
@@ -370,80 +359,73 @@ const diasEntre = (a, b) =>
   Math.floor((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
 
 /* ==========================================================
+   API
+   Uma única porta: a função "acesso" no Supabase.
+   O navegador nunca fala direto com as tabelas — é isso que
+   permite o login sem senha sem deixar o banco aberto.
+   ========================================================== */
+const API = {
+  endereco() {
+    return CONFIG.SUPABASE_URL.replace(/\/+$/, "") + "/functions/v1/acesso";
+  },
+  async chama(acao, dados) {
+    const r = await fetch(this.endereco(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ acao, email: App.email, token: App.token, ...dados })
+    });
+    return await r.json();
+  }
+};
+
+/* ==========================================================
    ARMAZENAMENTO
+   Sempre grava local primeiro (resposta instantânea) e depois
+   sincroniza. Se a internet cair, o usuário não perde o dia.
    ========================================================== */
 const Store = {
   chave(email) { return "cr_prog_" + (email || "demo"); },
-
   vazio() { return { inicio: HOJE(), dias: {}, falhas: [] }; },
 
-  async carregar(email) {
-    if (App.modo === "supabase") {
-      const { data, error } = await App.sb
-        .from("progresso").select("*").eq("email", email).maybeSingle();
-      if (error) console.warn("carregar:", error.message);
-      if (data) return { inicio: data.inicio, dias: data.dias || {}, falhas: data.falhas || [] };
-      const novo = this.vazio();
-      await this.salvar(email, novo);
-      return novo;
-    }
+  local(email) {
     const cru = localStorage.getItem(this.chave(email));
     if (cru) { try { return JSON.parse(cru); } catch (e) {} }
-    const novo = this.vazio();
-    await this.salvar(email, novo);
-    return novo;
+    return null;
   },
 
   async salvar(email, prog) {
     localStorage.setItem(this.chave(email), JSON.stringify(prog));
-    if (App.modo === "supabase") {
-      const { error } = await App.sb.from("progresso").upsert({
-        email, inicio: prog.inicio, dias: prog.dias, falhas: prog.falhas,
-        atualizado_em: new Date().toISOString()
-      });
-      if (error) console.warn("salvar:", error.message);
+    if (App.modo === "online") {
+      try { await API.chama("salvar", { progresso: prog }); }
+      catch (e) { console.warn("salvar:", e); }
     }
   }
 };
 
 /* ==========================================================
    EVENTOS DE USO
-   É daqui que sai a retenção D7/D14 — o número que decide
-   se a assinatura recorrente é um negócio real.
-   Grava sem travar a tela: se falhar, o app segue normal.
+   Daqui sai a retenção D7/D14 — o número que decide se a
+   assinatura recorrente é um negócio real. Não trava a tela:
+   se falhar, o app segue normal.
    ========================================================== */
 const Eventos = {
   registra(tipo, dia) {
-    if (App.modo !== "supabase" || !App.email) return;
-    App.sb.from("eventos")
-      .insert({ email: App.email, tipo, dia: dia ?? null })
-      .then(({ error }) => { if (error) console.warn("evento:", error.message); });
+    if (App.modo !== "online" || !App.email) return;
+    API.chama("evento", { tipo, dia: dia ?? null }).catch(() => {});
   }
 };
 
 /* ==========================================================
-   VERIFICAÇÃO DE ACESSO
-   Roda a cada abertura do app, não só no login. Assim um
-   reembolso ou chargeback revoga o acesso na próxima vez
-   que a pessoa abrir, sem depender de sessão expirar.
+   MENSAGENS DE ACESSO
    ========================================================== */
 const MSG_ACESSO = {
-  sem_compra:  "Não encontramos uma compra com esse e-mail. Use o mesmo e-mail do checkout.",
-  reembolsado: "Este acesso foi encerrado porque a compra foi reembolsada.",
-  chargeback:  "Este acesso está suspenso. Fale com o suporte para regularizar.",
-  cancelado:   "Sua assinatura foi cancelada, então o acesso foi encerrado.",
-  erro:        "Não consegui verificar seu acesso agora. Tente de novo em instantes."
+  sem_compra:    "Não encontramos uma compra com esse e-mail. Use o mesmo e-mail que você digitou no checkout.",
+  reembolsado:   "Este acesso foi encerrado porque a compra foi reembolsada.",
+  chargeback:    "Este acesso está suspenso. Fale com o suporte para regularizar.",
+  cancelado:     "Sua assinatura foi cancelada, então o acesso foi encerrado.",
+  email_invalido:"Digite um e-mail válido.",
+  erro:          "Não consegui verificar seu acesso agora. Tente de novo em instantes."
 };
-
-async function verificaAcesso(email) {
-  if (App.modo !== "supabase") return { ok: true, nivel: "protocolo21" };
-  const { data, error } = await App.sb
-    .from("acessos").select("nivel,status").eq("email", email).maybeSingle();
-  if (error) return { ok: false, motivo: "erro" };
-  if (!data)  return { ok: false, motivo: "sem_compra" };
-  if (data.status !== "ativo") return { ok: false, motivo: data.status };
-  return { ok: true, nivel: data.nivel };
-}
 
 /* ==========================================================
    REGRAS DO PROTOCOLO
@@ -496,7 +478,6 @@ function renderMapa() {
   const atual = Regras.diaAtual();
   document.getElementById("m-feitos").textContent = feitos;
 
-  // grade de 21 células
   const grade = document.getElementById("m-grade");
   grade.innerHTML = "";
   for (let d = 1; d <= 21; d++) {
@@ -510,7 +491,6 @@ function renderMapa() {
     grade.appendChild(c);
   }
 
-  // cartões de fase
   const cx = document.getElementById("m-fases");
   cx.innerHTML = "";
   FASES.forEach(f => {
@@ -601,7 +581,6 @@ function irParaOndeDeve() {
   const atual = Regras.diaAtual();
 
   if (atual > 21) { renderFinal(); return; }
-
   if (Regras.falhouHoje()) { renderRecaida(); return; }
 
   if (!Regras.liberado(atual)) {
@@ -627,6 +606,7 @@ async function marcarFeito() {
   Eventos.registra("dia_concluido", dia);
   if (dia === 21) Eventos.registra("terminou_protocolo", 21);
   renderMapa();
+
   const novo = Regras.diaAtual();
   if (novo > 21) { renderFinal(); return; }
   document.getElementById("e-titulo").textContent = "Dia " + dia + " concluído.";
@@ -645,105 +625,92 @@ async function marcarNaoFiz() {
 }
 
 /* ==========================================================
-   LOGIN
+   LOGIN — só o e-mail
    ========================================================== */
 function erroLogin(msg) {
   document.getElementById("login-erro").innerHTML =
     msg ? `<div class="erro">${msg}</div>` : "";
 }
 
-async function enviarCodigo() {
-  const email = document.getElementById("in-email").value.trim().toLowerCase();
-  if (!email || !email.includes("@")) { erroLogin("Digite um e-mail válido."); return; }
-  erroLogin("");
-  const btn = document.getElementById("btn-enviar");
-  btn.disabled = true; btn.textContent = "Enviando…";
+async function entrarComEmail(email, silencioso) {
+  email = (email || "").trim().toLowerCase();
+  if (!email.includes("@")) { erroLogin(MSG_ACESSO.email_invalido); return false; }
 
+  // --- modo demo: sem backend, qualquer e-mail entra ---
   if (App.modo === "demo") {
-    await entrar(email);
-    return;
+    App.email = email;
+    App.nivel = "protocolo21";
+    App.prog = Store.local(email) || Store.vazio();
+    await Store.salvar(email, App.prog);
+    abrirApp();
+    return true;
   }
 
-  const { error } = await App.sb.auth.signInWithOtp({
-    email, options: { shouldCreateUser: true }
-  });
-  btn.disabled = false; btn.textContent = "Receber código";
-  if (error) { erroLogin("Não consegui enviar o código. Tente de novo em instantes."); return; }
+  const btn = document.getElementById("btn-entrar");
+  if (!silencioso) { btn.disabled = true; btn.textContent = "Entrando…"; }
 
-  document.getElementById("email-eco").textContent = email;
-  document.getElementById("passo-email").style.display = "none";
-  document.getElementById("passo-codigo").style.display = "block";
-  document.getElementById("in-codigo").focus();
-}
+  let r;
+  try {
+    r = await fetch(API.endereco(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ acao: "entrar", email })
+    }).then(x => x.json());
+  } catch (e) {
+    r = { ok: false, motivo: "erro" };
+  }
 
-async function validarCodigo() {
-  const email = document.getElementById("in-email").value.trim().toLowerCase();
-  const token = document.getElementById("in-codigo").value.trim();
-  if (token.length < 6) { erroLogin("O código tem 6 dígitos."); return; }
-  erroLogin("");
-  const btn = document.getElementById("btn-validar");
-  btn.disabled = true; btn.textContent = "Verificando…";
-
-  const { error } = await App.sb.auth.verifyOtp({ email, token, type: "email" });
   btn.disabled = false; btn.textContent = "Entrar";
-  if (error) { erroLogin("Código inválido ou expirado. Peça um novo."); return; }
 
-  await entrar(email);
-}
-
-async function entrar(email) {
-  const acesso = await verificaAcesso(email);
-
-  if (!acesso.ok) {
-    if (App.modo === "supabase") await App.sb.auth.signOut();
-    localStorage.removeItem("cr_email");
-    App.email = null; App.nivel = null; App.prog = null;
-    document.getElementById("topo").style.display = "none";
-    document.getElementById("passo-email").style.display = "block";
-    document.getElementById("passo-codigo").style.display = "none";
-    erroLogin(MSG_ACESSO[acesso.motivo] || MSG_ACESSO.erro);
+  if (!r || !r.ok) {
+    sairLocal();
+    erroLogin(MSG_ACESSO[r && r.motivo] || MSG_ACESSO.erro);
     mostrar("v-login");
     return false;
   }
 
   App.email = email;
-  App.nivel = acesso.nivel;
+  App.nivel = r.nivel;
+  App.token = r.token;
+  App.prog  = r.progresso && r.progresso.inicio ? r.progresso : Store.vazio();
+
   localStorage.setItem("cr_email", email);
-  App.prog = await Store.carregar(email);
-  Eventos.registra("abriu_app");
-  document.getElementById("topo").style.display = "block";
-  renderMapa();
-  irParaOndeDeve();
+  localStorage.setItem("cr_token", r.token);
+  localStorage.setItem(Store.chave(email), JSON.stringify(App.prog));
+
+  abrirApp();
   return true;
 }
 
-async function sair() {
-  if (App.modo === "supabase" && App.sb) await App.sb.auth.signOut();
+function abrirApp() {
+  erroLogin("");
+  document.getElementById("topo").style.display = "block";
+  renderMapa();
+  irParaOndeDeve();
+}
+
+function sairLocal() {
   localStorage.removeItem("cr_email");
-  App.email = null; App.nivel = null; App.prog = null;
+  localStorage.removeItem("cr_token");
+  App.email = null; App.nivel = null; App.token = null; App.prog = null;
   document.getElementById("topo").style.display = "none";
-  document.getElementById("passo-email").style.display = "block";
-  document.getElementById("passo-codigo").style.display = "none";
-  document.getElementById("in-codigo").value = "";
+}
+
+function sair() {
+  sairLocal();
+  document.getElementById("in-email").value = "";
   erroLogin("");
   mostrar("v-login");
 }
 
 /* ==========================================================
-   EVENTOS
+   EVENTOS DA TELA
    ========================================================== */
-document.getElementById("btn-enviar").onclick = enviarCodigo;
-document.getElementById("btn-validar").onclick = validarCodigo;
-document.getElementById("btn-voltar-email").onclick = () => {
-  document.getElementById("passo-email").style.display = "block";
-  document.getElementById("passo-codigo").style.display = "none";
-  erroLogin("");
-};
+document.getElementById("btn-entrar").onclick = () =>
+  entrarComEmail(document.getElementById("in-email").value);
+
 document.getElementById("in-email").addEventListener("keydown", e => {
-  if (e.key === "Enter") enviarCodigo();
-});
-document.getElementById("in-codigo").addEventListener("keydown", e => {
-  if (e.key === "Enter") validarCodigo();
+  if (e.key === "Enter") entrarComEmail(e.target.value);
 });
 
 document.getElementById("btn-fiz").onclick = marcarFeito;
@@ -759,34 +726,15 @@ document.getElementById("btn-sair").onclick = sair;
    INICIALIZAÇÃO
    ========================================================== */
 async function iniciar() {
-  const temSb = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY;
-
-  if (temSb) {
-    await new Promise((ok, falha) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
-      s.onload = ok; s.onerror = falha;
-      document.head.appendChild(s);
-    }).catch(() => {});
-    if (window.supabase) {
-      App.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-      App.modo = "supabase";
-    }
-  }
-
+  App.modo = CONFIG.SUPABASE_URL ? "online" : "demo";
   document.getElementById("boot").style.display = "none";
 
-  // sessão existente? entrar() revalida o acesso e cai no login sozinho
-  // se a compra tiver sido reembolsada desde a última abertura.
-  if (App.modo === "supabase") {
-    const { data } = await App.sb.auth.getSession();
-    if (data && data.session && data.session.user) {
-      await entrar(data.session.user.email);
-      return;
-    }
-  } else {
-    const salvo = localStorage.getItem("cr_email");
-    if (salvo) { await entrar(salvo); return; }
+  const salvo = localStorage.getItem("cr_email");
+  if (salvo) {
+    // Reentrar revalida a compra. Se houve reembolso desde a última
+    // vez, o acesso cai aqui automaticamente.
+    const ok = await entrarComEmail(salvo, true);
+    if (ok) return;
   }
 
   mostrar("v-login");
