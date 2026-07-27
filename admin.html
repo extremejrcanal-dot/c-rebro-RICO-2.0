@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel — Cérebro Rico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0f; --bg-2:#151518; --bg-3:#1c1c21; --linha:#2a2a31;
+  --txt:#ece9e4; --txt-2:#9b968e; --txt-3:#6b675f;
+  --acento:#d99a2b; --ok:#5f9c6a; --alerta:#c4622d; --raio:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:Inter,-apple-system,sans-serif;font-size:15px;line-height:1.6}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px 70px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+h2{font-size:17px;font-weight:600;margin-bottom:4px}
+.sub{font-size:13px;color:var(--txt-3);margin-bottom:14px;line-height:1.5}
+
+.topo{border-bottom:1px solid var(--linha);position:sticky;top:0;background:rgba(13,13,15,.94);backdrop-filter:blur(12px);z-index:20}
+.topo-in{max-width:1100px;margin:0 auto;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.marca{font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase}
+.marca span{color:var(--acento)}
+.acoes-topo{display:flex;gap:8px;align-items:center}
+
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--linha);background:var(--bg-3);color:var(--txt);padding:9px 15px;font-size:14px}
+button:hover{border-color:var(--txt-3)}
+button.primario{background:var(--acento);color:#1a1206;border-color:var(--acento);font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+input,select{font:inherit;width:100%;padding:11px 13px;border-radius:10px;background:var(--bg-2);border:1px solid var(--linha);color:var(--txt);font-size:14px}
+input:focus,select:focus{outline:none;border-color:var(--acento)}
+
+section{margin-top:38px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-top:14px}
+.card{background:var(--bg-2);border:1px solid var(--linha);border-radius:var(--raio);padding:15px}
+.card .rot{font-size:11.5px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.08em}
+.card .val{font-size:27px;font-weight:600;letter-spacing:-.02em;margin-top:5px;line-height:1.1}
+
+.tabela-caixa{overflow-x:auto;border:1px solid var(--linha);border-radius:var(--raio);background:var(--bg-2);margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}
+th{text-align:left;padding:11px 14px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt-3);border-bottom:1px solid var(--linha);font-weight:600}
+td{padding:11px 14px;border-bottom:1px solid rgba(42,42,49,.55)}
+tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+.vazio{padding:22px 14px;color:var(--txt-3);font-size:13.5px}
+
+.nota{border-left:3px solid var(--acento);padding:11px 15px;background:rgba(217,154,43,.06);border-radius:0 8px 8px 0;font-size:13.5px;color:#d8d4cd;margin-top:12px;line-height:1.55}
+.nota.ruim{border-color:var(--alerta);background:rgba(196,98,45,.08)}
+.nota.bom{border-color:var(--ok);background:rgba(95,156,106,.08)}
+
+.pill{display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:100px;font-weight:500}
+.p-ok{background:rgba(95,156,106,.16);color:#8fc79a}
+.p-mau{background:rgba(196,98,45,.16);color:#e8a882}
+
+#login{max-width:400px;margin:14vh auto;padding:0 20px}
+.campo{margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:7px}
+.erro{background:rgba(196,98,45,.12);border:1px solid rgba(196,98,45,.35);color:#e8a882;padding:11px 14px;border-radius:10px;font-size:14px;margin-bottom:14px}
+.ferramentas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.bloco{background:var(--bg-2);border:1px solid var(--linha);border-radius:var(--raio);padding:18px}
+.res{margin-top:12px;font-size:13.5px;color:var(--txt-2);line-height:1.6}
+.carregando{text-align:center;padding:16vh 0;color:var(--txt-3)}
+.esconde{display:none}
+</style>
+</head>
+<body>
+
+<div id="boot" class="carregando">Carregando…</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="login" class="esconde">
+  <h1>Painel</h1>
+  <p class="sub">Acesso restrito. Entre com o e-mail cadastrado como administrador.</p>
+  <div id="login-erro"></div>
+  <div id="p-email">
+    <div class="campo"><label>E-mail</label><input type="email" id="in-email" placeholder="voce@email.com"></div>
+    <button class="primario" id="btn-enviar" style="width:100%">Receber código</button>
+  </div>
+  <div id="p-codigo" class="esconde">
+    <div class="campo"><label>Código de 6 dígitos</label><input type="text" id="in-codigo" maxlength="6" inputmode="numeric" placeholder="000000"></div>
+    <button class="primario" id="btn-validar" style="width:100%">Entrar</button>
+  </div>
+</div>
+
+<!-- ================= PAINEL ================= -->
+<div id="painel" class="esconde">
+  <header class="topo">
+    <div class="topo-in">
+      <div class="marca">Cérebro <span>Rico</span> · Painel</div>
+      <div class="acoes-topo">
+        <button id="btn-atualizar">Atualizar</button>
+        <button id="btn-sair">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <section>
+      <h2>Hoje</h2>
+      <div class="sub">Números do dia corrente. O painel lê direto do banco a cada atualização.</div>
+      <div class="cards" id="c-resumo"></div>
+      <div id="alerta-webhook"></div>
+    </section>
+
+    <section>
+      <h2>Retenção por coorte</h2>
+      <div class="sub">A métrica que decide se a assinatura recorrente é um negócio real. Coortes agrupadas por semana de compra.</div>
+      <div class="tabela-caixa" id="t-retencao"></div>
+      <div id="veredito-retencao"></div>
+    </section>
+
+    <section>
+      <h2>Funil de pagamento</h2>
+      <div class="sub">Quantos geram Pix ou boleto e não pagam. Vazamento aqui não se conserta com criativo.</div>
+      <div class="tabela-caixa" id="t-funil"></div>
+      <div id="alerta-pix"></div>
+    </section>
+
+    <section>
+      <h2>Ticket e order bump</h2>
+      <div class="sub">Take rate do bump precisa passar de 25% para o break-even de R$57 fechar.</div>
+      <div class="tabela-caixa" id="t-ticket"></div>
+      <div id="alerta-bump"></div>
+    </section>
+
+    <section>
+      <h2>Receita por criativo</h2>
+      <div class="sub">Vem do utm_content do link do anúncio. Cruze com o gasto no Meta para achar o CPA real de cada criativo.</div>
+      <div class="tabela-caixa" id="t-criativo"></div>
+    </section>
+
+    <section>
+      <h2>Onde as pessoas param</h2>
+      <div class="sub">Concentração de abandono em um dia significa que o conteúdo daquele dia precisa ser reescrito.</div>
+      <div class="tabela-caixa" id="t-abandono"></div>
+    </section>
+
+    <section>
+      <h2>Ferramentas</h2>
+      <div class="ferramentas">
+        <div class="bloco">
+          <h2 style="font-size:15px">Liberar acesso na mão</h2>
+          <div class="sub" style="margin-bottom:12px">Para cortesia, suporte ou quando o webhook falhar.</div>
+          <div class="campo"><input type="email" id="lib-email" placeholder="email@dapessoa.com"></div>
+          <div class="campo">
+            <select id="lib-nivel">
+              <option value="protocolo21">Protocolo 21 dias</option>
+              <option value="protocolo90">Cérebro Rico 90 dias</option>
+              <option value="assinante">Assinante</option>
+            </select>
+          </div>
+          <button class="primario" id="btn-liberar" style="width:100%">Liberar acesso</button>
+          <div class="res" id="lib-res"></div>
+        </div>
+
+        <div class="bloco">
+          <h2 style="font-size:15px">Consultar comprador</h2>
+          <div class="sub" style="margin-bottom:12px">Quando alguém disser que pagou e não recebeu.</div>
+          <div class="campo"><input type="email" id="bus-email" placeholder="email@dapessoa.com"></div>
+          <button id="btn-buscar" style="width:100%">Buscar</button>
+          <div class="res" id="bus-res"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+/* ==========================================================
+   CONFIGURAÇÃO
+   Não edite aqui. Os dois valores ficam no arquivo config.js,
+   os mesmos que o app do comprador usa.
+   ========================================================== */
+const CONFIG = window.CEREBRO_RICO || { SUPABASE_URL: "", SUPABASE_ANON_KEY: "" };
+
+let sb = null;
+
+const $  = (id) => document.getElementById(id);
+const bl = (n) => (n === null || n === undefined) ? "—" : Number(n).toLocaleString("pt-BR");
+const rs = (n) => (n === null || n === undefined) ? "—"
+  : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const pct = (n) => (n === null || n === undefined) ? "—" : Number(n).toFixed(1) + "%";
+const dt  = (s) => s ? new Date(s + (s.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
+
+/* ---------- render genérico de tabela ---------- */
+function tabela(alvo, linhas, colunas, msgVazio) {
+  const el = $(alvo);
+  if (!linhas || !linhas.length) {
+    el.innerHTML = `<div class="vazio">${msgVazio}</div>`;
+    return;
+  }
+  const cab = colunas.map(c => `<th class="${c.num ? "num" : ""}">${c.rot}</th>`).join("");
+  const corpo = linhas.map(l =>
+    "<tr>" + colunas.map(c => {
+      const v = c.fmt ? c.fmt(l[c.campo], l) : (l[c.campo] ?? "—");
+      return `<td class="${c.num ? "num" : ""}">${v}</td>`;
+    }).join("") + "</tr>"
+  ).join("");
+  el.innerHTML = `<table><thead><tr>${cab}</tr></thead><tbody>${corpo}</tbody></table>`;
+}
+
+function nota(alvo, texto, tipo) {
+  $(alvo).innerHTML = texto ? `<div class="nota ${tipo || ""}">${texto}</div>` : "";
+}
+
+/* ==========================================================
+   CARREGAMENTO DOS DADOS
+   ========================================================== */
+async function carregarTudo() {
+  const btn = $("btn-atualizar");
+  btn.disabled = true; btn.textContent = "Atualizando…";
+
+  const [resumo, retencao, funil, ticket, criativo, abandono] = await Promise.all([
+    sb.from("v_resumo").select("*").maybeSingle(),
+    sb.from("v_retencao").select("*").limit(12),
+    sb.from("v_funil_pagamento").select("*").limit(30),
+    sb.from("v_ticket").select("*").limit(12),
+    sb.from("v_por_criativo").select("*").limit(25),
+    sb.from("v_abandono_por_dia").select("*")
+  ]);
+
+  /* ---- resumo ---- */
+  const r = resumo.data || {};
+  $("c-resumo").innerHTML = [
+    ["Vendas hoje",        bl(r.vendas_hoje)],
+    ["Receita hoje",       rs(r.receita_hoje)],
+    ["Liberados hoje",     bl(r.liberados_hoje)],
+    ["Acessos ativos",     bl(r.acessos_ativos)],
+    ["Usando o app hoje",  bl(r.usuarios_ativos_hoje)],
+    ["Dias concluídos",    bl(r.dias_concluidos_hoje)],
+    ["Acessos revogados",  bl(r.acessos_revogados)]
+  ].map(([rot, val]) => `<div class="card"><div class="rot">${rot}</div><div class="val">${val}</div></div>`).join("");
+
+  nota("alerta-webhook",
+    r.erros_webhook_7d > 0
+      ? `<b>${r.erros_webhook_7d} webhook(s) falharam nos últimos 7 dias.</b> Isso significa gente que pagou e pode não ter recebido acesso. Rode <code>select * from webhook_log where ok = false order by recebido_em desc;</code> no SQL Editor e libere na mão quem ficou de fora.`
+      : "", "ruim");
+
+  /* ---- retenção ---- */
+  tabela("t-retencao", retencao.data, [
+    { rot: "Coorte",        campo: "coorte", fmt: dt },
+    { rot: "Compradores",   campo: "compradores", num: true, fmt: bl },
+    { rot: "Ativaram",      campo: "ativacao_pct", num: true, fmt: pct },
+    { rot: "Ativos D7",     campo: "retencao_d7_pct", num: true, fmt: pct },
+    { rot: "Ativos D14",    campo: "retencao_d14_pct", num: true,
+      fmt: (v) => v === null ? "—" : `<span class="pill ${v >= 40 ? "p-ok" : "p-mau"}">${pct(v)}</span>` },
+    { rot: "Concluíram",    campo: "concluiram", num: true, fmt: bl },
+    { rot: "Média de dias", campo: "media_dias_feitos", num: true }
+  ], "Ainda sem dados. Aparece depois que os primeiros compradores usarem o app por 2 semanas.");
+
+  const coortes = (retencao.data || []).filter(c => c.compradores >= 10 && c.retencao_d14_pct !== null);
+  if (coortes.length) {
+    const media = coortes.reduce((s, c) => s + Number(c.retencao_d14_pct), 0) / coortes.length;
+    nota("veredito-retencao",
+      media >= 40
+        ? `<b>Retenção D14 média de ${media.toFixed(1)}%.</b> Acima de 40% — a recorrência tem base real. Vale construir a assinatura, e o que vai sustentar o churn é accountability humana, não feature de software.`
+        : `<b>Retenção D14 média de ${media.toFixed(1)}%.</b> Abaixo de 40%. Com esse número, assinatura recorrente não se sustenta: você pagaria CAC hoje para receber ao longo de meses que não vão acontecer. O caminho é produto único com AOV alto e catálogo de ofertas — mais lucrativo e mais rápido para quem tem pouco caixa.`,
+      media >= 40 ? "bom" : "ruim");
+  } else {
+    nota("veredito-retencao", "O veredito sobre a assinatura aparece aqui quando houver ao menos uma coorte com 10 compradores e 14 dias de idade.", "");
+  }
+
+  /* ---- funil ---- */
+  tabela("t-funil", funil.data, [
+    { rot: "Dia",         campo: "dia", fmt: dt },
+    { rot: "Método",      campo: "metodo" },
+    { rot: "Gerados",     campo: "gerados", num: true, fmt: bl },
+    { rot: "Aprovados",   campo: "aprovados", num: true, fmt: bl },
+    { rot: "Expirados",   campo: "expirados", num: true, fmt: bl },
+    { rot: "Recusados",   campo: "recusados", num: true, fmt: bl },
+    { rot: "Abandonos",   campo: "abandonados", num: true, fmt: bl },
+    { rot: "Conversão",   campo: "taxa_conversao_pct", num: true,
+      fmt: (v) => v === null ? "—" : `<span class="pill ${v >= 70 ? "p-ok" : "p-mau"}">${pct(v)}</span>` }
+  ], "Ainda sem dados. Confirme que os eventos PIX_GENERATED e ABANDONED_CART estão marcados no webhook da Kirvano.");
+
+  const pix = (funil.data || []).filter(f => f.metodo === "PIX" && f.gerados >= 5);
+  if (pix.length) {
+    const g = pix.reduce((s, f) => s + Number(f.gerados), 0);
+    const a = pix.reduce((s, f) => s + Number(f.aprovados), 0);
+    const taxa = g ? (100 * a / (g + a)) : null;
+    if (taxa !== null && taxa < 70) {
+      nota("alerta-pix", `<b>Conversão do Pix em ${taxa.toFixed(1)}%.</b> Abaixo de 70% é vazamento estrutural, não problema de tráfego. Cada ponto percentual aqui vale mais que qualquer criativo novo. Verifique se o QR code aparece rápido, se o e-mail com o código chega, e se existe lembrete para quem gerou e não pagou.`, "ruim");
+    } else if (taxa !== null) {
+      nota("alerta-pix", `Conversão do Pix em ${taxa.toFixed(1)}%. Saudável.`, "bom");
+    }
+  }
+
+  /* ---- ticket ---- */
+  tabela("t-ticket", ticket.data, [
+    { rot: "Semana",       campo: "semana", fmt: dt },
+    { rot: "Vendas",       campo: "vendas", num: true, fmt: bl },
+    { rot: "Com bump",     campo: "com_bump", num: true, fmt: bl },
+    { rot: "Take rate",    campo: "take_rate_bump_pct", num: true,
+      fmt: (v) => v === null ? "—" : `<span class="pill ${v >= 25 ? "p-ok" : "p-mau"}">${pct(v)}</span>` },
+    { rot: "Ticket médio", campo: "ticket_medio", num: true, fmt: rs },
+    { rot: "Receita",      campo: "receita_bruta", num: true, fmt: rs }
+  ], "Ainda sem vendas aprovadas registradas.");
+
+  const ult = (ticket.data || [])[0];
+  if (ult && ult.vendas >= 10) {
+    const t = Number(ult.take_rate_bump_pct);
+    nota("alerta-bump",
+      t >= 25
+        ? `Take rate do bump em ${pct(t)} na última semana, com ticket médio de ${rs(ult.ticket_medio)}. A matemática nova está fechando.`
+        : `<b>Take rate do bump em ${pct(t)}.</b> Abaixo de 25%. Quando o bump converte pouco, quase nunca é preço — é que ele não parece a continuação óbvia do que a pessoa acabou de comprar. Teste um bump que entregue no dia 1 aquilo que o anúncio prometeu.`,
+      t >= 25 ? "bom" : "ruim");
+  }
+
+  /* ---- criativos ---- */
+  tabela("t-criativo", criativo.data, [
+    { rot: "Criativo",     campo: "criativo" },
+    { rot: "Campanha",     campo: "campanha" },
+    { rot: "Vendas",       campo: "vendas", num: true, fmt: bl },
+    { rot: "Receita",      campo: "receita", num: true, fmt: rs },
+    { rot: "Ticket médio", campo: "ticket_medio", num: true, fmt: rs },
+    { rot: "Abandonos",    campo: "carrinhos_abandonados", num: true, fmt: bl },
+    { rot: "Devoluções",   campo: "devolucoes", num: true, fmt: bl },
+    { rot: "Última venda", campo: "ultima_venda", fmt: dt }
+  ], "Sem dados de criativo. Marque utm_content com o ID do criativo nos links dos anúncios para esta tabela funcionar.");
+
+  /* ---- abandono ---- */
+  tabela("t-abandono", abandono.data, [
+    { rot: "Parou no dia", campo: "parou_no_dia", num: true },
+    { rot: "Pessoas",      campo: "pessoas", num: true, fmt: bl },
+    { rot: "Percentual",   campo: "pct", num: true, fmt: pct }
+  ], "Aparece quando os compradores começarem a concluir dias no app.");
+
+  btn.disabled = false; btn.textContent = "Atualizar";
+}
+
+/* ==========================================================
+   FERRAMENTAS
+   ========================================================== */
+$("btn-liberar").onclick = async () => {
+  const email = $("lib-email").value.trim().toLowerCase();
+  const nivel = $("lib-nivel").value;
+  if (!email.includes("@")) { $("lib-res").textContent = "Digite um e-mail válido."; return; }
+
+  const { error } = await sb.from("acessos").upsert({
+    email, nivel, status: "ativo", revogado_em: null,
+    origem: "manual", observacao: "liberado pelo painel"
+  }, { onConflict: "email" });
+
+  $("lib-res").innerHTML = error
+    ? `<span style="color:var(--alerta)">Erro: ${error.message}</span>`
+    : `<span style="color:var(--ok)">Acesso liberado para ${email}.</span>`;
+  if (!error) { $("lib-email").value = ""; carregarTudo(); }
+};
+
+$("btn-buscar").onclick = async () => {
+  const email = $("bus-email").value.trim().toLowerCase();
+  if (!email.includes("@")) { $("bus-res").textContent = "Digite um e-mail válido."; return; }
+  $("bus-res").textContent = "Buscando…";
+
+  const [ac, pr, cp, ev] = await Promise.all([
+    sb.from("acessos").select("*").eq("email", email).maybeSingle(),
+    sb.from("progresso").select("*").eq("email", email).maybeSingle(),
+    sb.from("compras").select("evento,valor_centavos,criado_em").eq("email", email).order("criado_em", { ascending: false }).limit(6),
+    sb.from("eventos").select("tipo,dia,criado_em").eq("email", email).order("criado_em", { ascending: false }).limit(1)
+  ]);
+
+  if (!ac.data && !(cp.data || []).length) {
+    $("bus-res").innerHTML = `<span style="color:var(--alerta)">Nada encontrado para esse e-mail.</span> Confira se a pessoa usou outro e-mail no checkout.`;
+    return;
+  }
+
+  const feitos = pr.data ? Object.values(pr.data.dias || {}).filter(d => d.status === "feito").length : 0;
+  const hist = (cp.data || []).map(c =>
+    `<div>${dt(c.criado_em.slice(0,10))} · ${c.evento} · ${rs((c.valor_centavos || 0) / 100)}</div>`).join("") || "<div>sem eventos financeiros</div>";
+
+  $("bus-res").innerHTML = `
+    <div><b>Acesso:</b> ${ac.data ? `${ac.data.status} · ${ac.data.nivel} · liberado em ${dt(ac.data.liberado_em.slice(0,10))}` : `<span style="color:var(--alerta)">não existe em acessos</span>`}</div>
+    <div><b>Progresso:</b> ${pr.data ? `${feitos} de 21 dias · começou em ${dt(pr.data.inicio)}` : "sem linha de progresso"}</div>
+    <div><b>Último uso:</b> ${(ev.data || []).length ? dt(ev.data[0].criado_em.slice(0,10)) : "nunca abriu o app"}</div>
+    <div style="margin-top:9px"><b>Histórico:</b>${hist}</div>`;
+};
+
+/* ==========================================================
+   LOGIN
+   ========================================================== */
+function erroLogin(m) { $("login-erro").innerHTML = m ? `<div class="erro">${m}</div>` : ""; }
+
+$("btn-enviar").onclick = async () => {
+  const email = $("in-email").value.trim().toLowerCase();
+  if (!email.includes("@")) { erroLogin("Digite um e-mail válido."); return; }
+  erroLogin("");
+  const b = $("btn-enviar"); b.disabled = true; b.textContent = "Enviando…";
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  b.disabled = false; b.textContent = "Receber código";
+  if (error) { erroLogin("Não consegui enviar o código. Confira o e-mail."); return; }
+  $("p-email").classList.add("esconde");
+  $("p-codigo").classList.remove("esconde");
+  $("in-codigo").focus();
+};
+
+$("btn-validar").onclick = async () => {
+  const email = $("in-email").value.trim().toLowerCase();
+  const token = $("in-codigo").value.trim();
+  const b = $("btn-validar"); b.disabled = true; b.textContent = "Verificando…";
+  const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
+  b.disabled = false; b.textContent = "Entrar";
+  if (error) { erroLogin("Código inválido ou expirado."); return; }
+  await abrirPainel();
+};
+
+$("btn-sair").onclick = async () => {
+  await sb.auth.signOut();
+  location.reload();
+};
+$("btn-atualizar").onclick = carregarTudo;
+$("in-codigo").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-validar").click(); });
+$("in-email").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-enviar").click(); });
+
+/* ==========================================================
+   INICIALIZAÇÃO
+   ========================================================== */
+async function abrirPainel() {
+  // eh_admin() é a mesma função que as políticas do banco usam.
+  // Se ela devolver false, nem adianta esconder a tela: o banco
+  // não devolveria nenhuma linha de qualquer forma.
+  const { data: admin, error } = await sb.rpc("eh_admin");
+  if (error || !admin) {
+    await sb.auth.signOut();
+    $("boot").classList.add("esconde");
+    $("login").classList.remove("esconde");
+    erroLogin("Este e-mail não tem permissão de administrador.");
+    return;
+  }
+  $("boot").classList.add("esconde");
+  $("login").classList.add("esconde");
+  $("painel").classList.remove("esconde");
+  await carregarTudo();
+}
+
+(async function iniciar() {
+  if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+    $("boot").innerHTML = "Preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do script deste arquivo.";
+    return;
+  }
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) { await abrirPainel(); return; }
+  $("boot").classList.add("esconde");
+  $("login").classList.remove("esconde");
+})();
+</script>
+</body>
+</html>

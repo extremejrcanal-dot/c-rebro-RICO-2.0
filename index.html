@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0f">
+<title>Cérebro Rico — O Ciclo do Comando</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================
+   CÉREBRO RICO — estilos
+   ========================================================== */
+:root{
+  --bg:#0d0d0f;
+  --bg-2:#151518;
+  --bg-3:#1c1c21;
+  --linha:#2a2a31;
+  --txt:#ece9e4;
+  --txt-2:#9b968e;
+  --txt-3:#6b675f;
+  --acento:#d99a2b;
+  --acento-escuro:#8a6218;
+  --ok:#5f9c6a;
+  --alerta:#c4622d;
+  --raio:14px;
+  --max:620px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 22px}
+.view{display:none;animation:sobe .35s ease}
+.view.on{display:block}
+@keyframes sobe{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- tipografia ---------- */
+h1{font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+h2{font-size:23px;line-height:1.25;font-weight:600;letter-spacing:-.015em}
+h3{font-size:15px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt-3)}
+p{margin-bottom:17px}
+.linha-destaque{
+  font-size:19px;color:var(--acento);font-weight:500;
+  margin:10px 0 26px;line-height:1.4;
+}
+.leitura p{color:#d8d4cd}
+.leitura p:last-child{margin-bottom:0}
+
+/* ---------- topo ---------- */
+.topo{
+  position:sticky;top:0;z-index:20;background:rgba(13,13,15,.93);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--linha);
+}
+.topo-in{
+  max-width:var(--max);margin:0 auto;padding:14px 22px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.marca{font-size:13px;font-weight:700;letter-spacing:.13em;text-transform:uppercase}
+.marca span{color:var(--acento)}
+.btn-txt{
+  background:none;border:none;color:var(--txt-3);font:inherit;font-size:13px;
+  cursor:pointer;padding:6px 2px;
+}
+.btn-txt:hover{color:var(--txt-2)}
+
+/* ---------- botões ---------- */
+.btn{
+  display:block;width:100%;padding:17px 20px;border:none;border-radius:var(--raio);
+  font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:center;
+  transition:transform .12s ease,opacity .12s ease;
+}
+.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-1{background:var(--acento);color:#1a1206}
+.btn-2{background:var(--bg-3);color:var(--txt);border:1px solid var(--linha)}
+.btn-3{background:none;color:var(--txt-3);border:1px solid transparent;font-weight:500}
+.btn+.btn{margin-top:11px}
+
+/* ---------- campos ---------- */
+input{
+  width:100%;padding:16px 18px;border-radius:var(--raio);
+  background:var(--bg-2);border:1px solid var(--linha);color:var(--txt);
+  font:inherit;font-size:16px;
+}
+input:focus{outline:none;border-color:var(--acento-escuro)}
+input::placeholder{color:var(--txt-3)}
+.codigo{text-align:center;letter-spacing:.5em;font-size:24px;font-weight:600;padding-left:.5em}
+label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:9px}
+.campo{margin-bottom:18px}
+
+/* ---------- login ---------- */
+#v-login{padding-top:12vh;padding-bottom:40px}
+.selo{
+  display:inline-block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--acento);border:1px solid var(--acento-escuro);
+  padding:5px 11px;border-radius:100px;margin-bottom:20px;
+}
+.aviso{
+  font-size:14px;color:var(--txt-2);margin-top:20px;line-height:1.55;
+}
+.erro{
+  background:rgba(196,98,45,.11);border:1px solid rgba(196,98,45,.35);
+  color:#e8a882;padding:13px 16px;border-radius:11px;font-size:14.5px;margin-bottom:18px;
+}
+
+/* ---------- mapa das fases ---------- */
+.cabecalho{padding:34px 0 26px}
+.progresso-linha{
+  display:flex;align-items:baseline;gap:10px;margin-top:6px;
+}
+.progresso-num{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.progresso-de{color:var(--txt-3);font-size:15px}
+
+.grade{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin:22px 0 8px}
+.cel{
+  aspect-ratio:1;border-radius:9px;background:var(--bg-2);border:1px solid var(--linha);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:600;color:var(--txt-3);
+}
+.cel.feito{background:var(--acento);border-color:var(--acento);color:#1a1206}
+.cel.falhou{background:var(--bg-2);border-color:rgba(196,98,45,.5);color:var(--alerta)}
+.cel.atual{border-color:var(--acento);color:var(--acento);box-shadow:0 0 0 3px rgba(217,154,43,.13)}
+.legenda{display:flex;gap:16px;font-size:12.5px;color:var(--txt-3);margin-bottom:30px}
+.legenda i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+.fase{
+  border:1px solid var(--linha);border-radius:var(--raio);
+  padding:20px;margin-bottom:13px;background:var(--bg-2);
+}
+.fase.ativa{border-color:var(--acento-escuro);background:rgba(217,154,43,.05)}
+.fase.completa{opacity:.55}
+.fase-topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.fase-nome{font-size:19px;font-weight:600}
+.fase-dias{font-size:12px;color:var(--txt-3);letter-spacing:.05em}
+.fase-desc{font-size:14.5px;color:var(--txt-2);line-height:1.55}
+.fase-barra{height:3px;background:var(--bg-3);border-radius:3px;margin-top:14px;overflow:hidden}
+.fase-barra i{display:block;height:100%;background:var(--acento);border-radius:3px;transition:width .5s ease}
+
+.rodape-mapa{padding:26px 0 44px}
+
+/* ---------- tela do dia ---------- */
+.dia-topo{padding:30px 0 4px}
+.dia-etiqueta{
+  font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--txt-3);
+  margin-bottom:12px;
+}
+.dia-etiqueta b{color:var(--acento);font-weight:600}
+.leitura{padding-bottom:8px}
+
+.cartao-acao{
+  background:var(--bg-2);border:1px solid var(--linha);border-radius:var(--raio);
+  padding:22px;margin:30px 0 26px;
+}
+.acao-topo{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px}
+.acao-titulo{font-size:19px;font-weight:600}
+.acao-tempo{font-size:12px;color:var(--txt-3);white-space:nowrap}
+.passos{list-style:none;counter-reset:p;margin-top:18px}
+.passos li{
+  counter-increment:p;position:relative;padding-left:34px;margin-bottom:15px;
+  font-size:15.5px;line-height:1.55;color:#d8d4cd;
+}
+.passos li:last-child{margin-bottom:0}
+.passos li::before{
+  content:counter(p);position:absolute;left:0;top:1px;
+  width:23px;height:23px;border-radius:50%;background:var(--bg-3);
+  color:var(--acento);font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.checkin{border-top:1px solid var(--linha);padding:26px 0 44px}
+.checkin-pergunta{font-size:18px;font-weight:500;margin-bottom:20px;line-height:1.45}
+
+/* ---------- espera / recaída / final ---------- */
+.centro{padding:14vh 0 60px;text-align:center}
+.centro .icone{font-size:40px;margin-bottom:20px;color:var(--acento)}
+.centro p{color:var(--txt-2);font-size:16px}
+.caixa-recaida{
+  border:1px solid rgba(196,98,45,.3);background:rgba(196,98,45,.06);
+  border-radius:var(--raio);padding:22px;margin:26px 0;
+}
+.caixa-recaida p{color:#d8d4cd;font-size:15.5px}
+.caixa-recaida p:last-child{margin-bottom:0}
+.regra{
+  font-size:17px;font-weight:600;color:var(--acento);
+  border-left:3px solid var(--acento);padding-left:16px;margin:26px 0;line-height:1.45;
+}
+.mini{font-size:13px;color:var(--txt-3);margin-top:26px;line-height:1.6}
+.carregando{text-align:center;padding:22vh 0;color:var(--txt-3);font-size:15px}
+</style>
+</head>
+<body>
+
+<header class="topo" id="topo" style="display:none">
+  <div class="topo-in">
+    <div class="marca">Cérebro <span>Rico</span></div>
+    <button class="btn-txt" id="btn-sair">Sair</button>
+  </div>
+</header>
+
+<div id="boot" class="carregando">Carregando…</div>
+
+<main class="wrap">
+
+  <!-- ============ LOGIN ============ -->
+  <section class="view" id="v-login">
+    <div class="selo">O Ciclo do Comando</div>
+    <h1>Entre com o e-mail<br>da sua compra.</h1>
+    <p class="linha-destaque">21 dias. Um por dia.</p>
+
+    <div id="login-erro"></div>
+
+    <div id="passo-email">
+      <div class="campo">
+        <label for="in-email">E-mail</label>
+        <input type="email" id="in-email" placeholder="seu@email.com" autocomplete="email" inputmode="email">
+      </div>
+      <button class="btn btn-1" id="btn-enviar">Receber código</button>
+      <p class="aviso">Você vai receber um código de 6 dígitos por e-mail. Não precisa criar senha.</p>
+    </div>
+
+    <div id="passo-codigo" style="display:none">
+      <div class="campo">
+        <label for="in-codigo">Código enviado para <b id="email-eco"></b></label>
+        <input type="text" id="in-codigo" class="codigo" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      </div>
+      <button class="btn btn-1" id="btn-validar">Entrar</button>
+      <button class="btn btn-3" id="btn-voltar-email">Usar outro e-mail</button>
+    </div>
+  </section>
+
+  <!-- ============ MAPA DAS FASES ============ -->
+  <section class="view" id="v-mapa">
+    <div class="cabecalho">
+      <h3>Seu progresso</h3>
+      <div class="progresso-linha">
+        <span class="progresso-num" id="m-feitos">0</span>
+        <span class="progresso-de">de 21 dias concluídos</span>
+      </div>
+    </div>
+
+    <div class="grade" id="m-grade"></div>
+    <div class="legenda">
+      <span><i style="background:var(--acento)"></i>Feito</span>
+      <span><i style="background:var(--bg-2);border:1px solid var(--alerta)"></i>Falhou</span>
+      <span><i style="background:var(--bg-2);border:1px solid var(--linha)"></i>Pela frente</span>
+    </div>
+
+    <div id="m-fases"></div>
+
+    <div class="rodape-mapa">
+      <button class="btn btn-1" id="btn-abrir-dia">Abrir o dia</button>
+    </div>
+  </section>
+
+  <!-- ============ TELA DO DIA ============ -->
+  <section class="view" id="v-dia">
+    <div class="dia-topo">
+      <div class="dia-etiqueta" id="d-etiqueta"></div>
+      <h2 id="d-titulo"></h2>
+      <p class="linha-destaque" id="d-linha"></p>
+    </div>
+
+    <div class="leitura" id="d-leitura"></div>
+
+    <div class="cartao-acao">
+      <div class="acao-topo">
+        <div class="acao-titulo" id="d-acao-titulo"></div>
+        <div class="acao-tempo" id="d-acao-tempo"></div>
+      </div>
+      <ol class="passos" id="d-passos"></ol>
+    </div>
+
+    <div class="checkin">
+      <div class="checkin-pergunta" id="d-checkin"></div>
+      <button class="btn btn-1" id="btn-fiz">Fiz</button>
+      <button class="btn btn-2" id="btn-nao-fiz">Não fiz hoje</button>
+      <button class="btn btn-3" id="btn-voltar-mapa">Voltar</button>
+    </div>
+  </section>
+
+  <!-- ============ ESPERA (dia já concluído) ============ -->
+  <section class="view" id="v-espera">
+    <div class="centro">
+      <div class="icone">✓</div>
+      <h2 id="e-titulo">Dia concluído.</h2>
+      <p id="e-texto" style="margin-top:14px">O próximo dia abre amanhã. Não adianta adiantar — o intervalo faz parte do método.</p>
+      <div style="margin-top:34px">
+        <button class="btn btn-2" id="btn-espera-mapa">Ver meu progresso</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RECAÍDA ============ -->
+  <section class="view" id="v-recaida">
+    <div class="dia-topo">
+      <div class="dia-etiqueta">Registro</div>
+      <h2 id="r-titulo"></h2>
+      <p class="linha-destaque" id="r-linha"></p>
+    </div>
+
+    <div class="caixa-recaida" id="r-leitura"></div>
+
+    <div class="regra">Falhar um dia é um dia.<br>Falhar dois é uma decisão.</div>
+
+    <div class="cartao-acao">
+      <div class="acao-topo">
+        <div class="acao-titulo" id="r-acao-titulo"></div>
+        <div class="acao-tempo" id="r-acao-tempo"></div>
+      </div>
+      <ol class="passos" id="r-passos"></ol>
+    </div>
+
+    <div style="padding-bottom:44px">
+      <button class="btn btn-1" id="btn-recaida-ok">Entendi. Volto amanhã.</button>
+      <p class="mini">Seu progresso não foi apagado. Você continua exatamente onde estava.</p>
+    </div>
+  </section>
+
+  <!-- ============ FINAL ============ -->
+  <section class="view" id="v-final">
+    <div class="dia-topo">
+      <div class="dia-etiqueta"><b>Ciclo completo</b></div>
+      <h2 id="f-titulo"></h2>
+      <p class="linha-destaque" id="f-linha"></p>
+    </div>
+    <div class="leitura" id="f-leitura"></div>
+    <div style="padding:30px 0 50px">
+      <button class="btn btn-2" id="btn-final-mapa">Rever os 21 dias</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="config.js"></script>
+<script src="conteudo.js"></script>
+<script>
+/* ==========================================================
+   CONFIGURAÇÃO
+   Não edite aqui. Os dois valores ficam no arquivo config.js.
+   Vazios = MODO DEMO (sem backend, progresso só neste aparelho).
+   ========================================================== */
+const CONFIG = window.CEREBRO_RICO || { SUPABASE_URL: "", SUPABASE_ANON_KEY: "" };
+
+/* ==========================================================
+   ESTADO
+   ========================================================== */
+const App = {
+  email: null,
+  nivel: null,           // protocolo21 | protocolo90 | assinante
+  modo: "demo",          // "demo" | "supabase"
+  sb: null,
+  prog: null             // { inicio, dias:{}, falhas:[] }
+};
+
+const HOJE = () => new Date().toISOString().slice(0, 10);
+const diasEntre = (a, b) =>
+  Math.floor((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+
+/* ==========================================================
+   ARMAZENAMENTO
+   ========================================================== */
+const Store = {
+  chave(email) { return "cr_prog_" + (email || "demo"); },
+
+  vazio() { return { inicio: HOJE(), dias: {}, falhas: [] }; },
+
+  async carregar(email) {
+    if (App.modo === "supabase") {
+      const { data, error } = await App.sb
+        .from("progresso").select("*").eq("email", email).maybeSingle();
+      if (error) console.warn("carregar:", error.message);
+      if (data) return { inicio: data.inicio, dias: data.dias || {}, falhas: data.falhas || [] };
+      const novo = this.vazio();
+      await this.salvar(email, novo);
+      return novo;
+    }
+    const cru = localStorage.getItem(this.chave(email));
+    if (cru) { try { return JSON.parse(cru); } catch (e) {} }
+    const novo = this.vazio();
+    await this.salvar(email, novo);
+    return novo;
+  },
+
+  async salvar(email, prog) {
+    localStorage.setItem(this.chave(email), JSON.stringify(prog));
+    if (App.modo === "supabase") {
+      const { error } = await App.sb.from("progresso").upsert({
+        email, inicio: prog.inicio, dias: prog.dias, falhas: prog.falhas,
+        atualizado_em: new Date().toISOString()
+      });
+      if (error) console.warn("salvar:", error.message);
+    }
+  }
+};
+
+/* ==========================================================
+   EVENTOS DE USO
+   É daqui que sai a retenção D7/D14 — o número que decide
+   se a assinatura recorrente é um negócio real.
+   Grava sem travar a tela: se falhar, o app segue normal.
+   ========================================================== */
+const Eventos = {
+  registra(tipo, dia) {
+    if (App.modo !== "supabase" || !App.email) return;
+    App.sb.from("eventos")
+      .insert({ email: App.email, tipo, dia: dia ?? null })
+      .then(({ error }) => { if (error) console.warn("evento:", error.message); });
+  }
+};
+
+/* ==========================================================
+   VERIFICAÇÃO DE ACESSO
+   Roda a cada abertura do app, não só no login. Assim um
+   reembolso ou chargeback revoga o acesso na próxima vez
+   que a pessoa abrir, sem depender de sessão expirar.
+   ========================================================== */
+const MSG_ACESSO = {
+  sem_compra:  "Não encontramos uma compra com esse e-mail. Use o mesmo e-mail do checkout.",
+  reembolsado: "Este acesso foi encerrado porque a compra foi reembolsada.",
+  chargeback:  "Este acesso está suspenso. Fale com o suporte para regularizar.",
+  cancelado:   "Sua assinatura foi cancelada, então o acesso foi encerrado.",
+  erro:        "Não consegui verificar seu acesso agora. Tente de novo em instantes."
+};
+
+async function verificaAcesso(email) {
+  if (App.modo !== "supabase") return { ok: true, nivel: "protocolo21" };
+  const { data, error } = await App.sb
+    .from("acessos").select("nivel,status").eq("email", email).maybeSingle();
+  if (error) return { ok: false, motivo: "erro" };
+  if (!data)  return { ok: false, motivo: "sem_compra" };
+  if (data.status !== "ativo") return { ok: false, motivo: data.status };
+  return { ok: true, nivel: data.nivel };
+}
+
+/* ==========================================================
+   REGRAS DO PROTOCOLO
+   ========================================================== */
+const Regras = {
+  // Primeiro dia ainda não concluído. Falhar NÃO avança e NÃO zera.
+  diaAtual() {
+    for (let d = 1; d <= 21; d++) {
+      if (!App.prog.dias[d] || App.prog.dias[d].status !== "feito") return d;
+    }
+    return 22;
+  },
+
+  concluidos() {
+    return Object.values(App.prog.dias).filter(d => d.status === "feito").length;
+  },
+
+  // Um dia por dia de calendário. Quem falta não perde nada: só retoma.
+  liberado(dia) {
+    const decorridos = diasEntre(App.prog.inicio, HOJE());
+    const jaFezHoje = Object.values(App.prog.dias)
+      .some(d => d.status === "feito" && d.data === HOJE());
+    if (jaFezHoje) return false;
+    return decorridos >= dia - 1;
+  },
+
+  falhouHoje() {
+    return App.prog.falhas.some(f => f.data === HOJE());
+  },
+
+  faseDe(dia) {
+    return FASES.find(f => dia >= f.dias[0] && dia <= f.dias[1]) || FASES[2];
+  }
+};
+
+/* ==========================================================
+   NAVEGAÇÃO
+   ========================================================== */
+function mostrar(id) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  window.scrollTo(0, 0);
+}
+
+/* ==========================================================
+   TELA: MAPA
+   ========================================================== */
+function renderMapa() {
+  const feitos = Regras.concluidos();
+  const atual = Regras.diaAtual();
+  document.getElementById("m-feitos").textContent = feitos;
+
+  // grade de 21 células
+  const grade = document.getElementById("m-grade");
+  grade.innerHTML = "";
+  for (let d = 1; d <= 21; d++) {
+    const c = document.createElement("div");
+    c.className = "cel";
+    const reg = App.prog.dias[d];
+    if (reg && reg.status === "feito") c.classList.add("feito");
+    else if (App.prog.falhas.some(f => f.dia === d)) c.classList.add("falhou");
+    if (d === atual && atual <= 21) c.classList.add("atual");
+    c.textContent = d;
+    grade.appendChild(c);
+  }
+
+  // cartões de fase
+  const cx = document.getElementById("m-fases");
+  cx.innerHTML = "";
+  FASES.forEach(f => {
+    const [ini, fim] = f.dias;
+    const total = fim - ini + 1;
+    let feitosFase = 0;
+    for (let d = ini; d <= fim; d++)
+      if (App.prog.dias[d] && App.prog.dias[d].status === "feito") feitosFase++;
+    const pct = Math.round((feitosFase / total) * 100);
+
+    const el = document.createElement("div");
+    el.className = "fase" + (atual >= ini && atual <= fim ? " ativa" : "") + (feitosFase === total ? " completa" : "");
+    el.innerHTML = `
+      <div class="fase-topo">
+        <div class="fase-nome">${f.id}. ${f.nome}</div>
+        <div class="fase-dias">DIAS ${ini}–${fim}</div>
+      </div>
+      <div class="fase-desc">${f.promessa}</div>
+      <div class="fase-barra"><i style="width:${pct}%"></i></div>`;
+    cx.appendChild(el);
+  });
+
+  const btn = document.getElementById("btn-abrir-dia");
+  if (atual > 21) {
+    btn.textContent = "Ver o fechamento";
+  } else if (Regras.liberado(atual)) {
+    btn.textContent = "Abrir o dia " + atual;
+  } else {
+    btn.textContent = "Dia " + atual + " abre amanhã";
+  }
+}
+
+/* ==========================================================
+   TELA: DIA
+   ========================================================== */
+function renderDia(dia) {
+  const D = DIAS.find(x => x.dia === dia);
+  if (!D) return;
+  const fase = Regras.faseDe(dia);
+
+  document.getElementById("d-etiqueta").innerHTML =
+    `Fase ${fase.id} · ${fase.nome} &nbsp;—&nbsp; <b>Dia ${D.dia} de 21</b>`;
+  document.getElementById("d-titulo").textContent = D.titulo;
+  document.getElementById("d-linha").textContent = D.linha;
+
+  document.getElementById("d-leitura").innerHTML =
+    D.leitura.map(p => `<p>${p}</p>`).join("");
+
+  document.getElementById("d-acao-titulo").textContent = D.acao.titulo;
+  document.getElementById("d-acao-tempo").textContent = D.acao.tempo;
+  document.getElementById("d-passos").innerHTML =
+    D.acao.passos.map(p => `<li>${p}</li>`).join("");
+
+  document.getElementById("d-checkin").textContent = D.checkin;
+  mostrar("v-dia");
+}
+
+/* ==========================================================
+   TELA: RECAÍDA
+   ========================================================== */
+function renderRecaida() {
+  document.getElementById("r-titulo").textContent = RECAIDA.titulo;
+  document.getElementById("r-linha").textContent = RECAIDA.linha;
+  document.getElementById("r-leitura").innerHTML =
+    RECAIDA.leitura.map(p => `<p>${p}</p>`).join("");
+  document.getElementById("r-acao-titulo").textContent = RECAIDA.acao.titulo;
+  document.getElementById("r-acao-tempo").textContent = RECAIDA.acao.tempo;
+  document.getElementById("r-passos").innerHTML =
+    RECAIDA.acao.passos.map(p => `<li>${p}</li>`).join("");
+  mostrar("v-recaida");
+}
+
+/* ==========================================================
+   TELA: FINAL
+   ========================================================== */
+function renderFinal() {
+  document.getElementById("f-titulo").textContent = FINAL.titulo;
+  document.getElementById("f-linha").textContent = FINAL.linha;
+  document.getElementById("f-leitura").innerHTML =
+    FINAL.leitura.map(p => `<p>${p}</p>`).join("");
+  mostrar("v-final");
+}
+
+/* ==========================================================
+   ROTEAMENTO PRINCIPAL
+   ========================================================== */
+function irParaOndeDeve() {
+  const atual = Regras.diaAtual();
+
+  if (atual > 21) { renderFinal(); return; }
+
+  if (Regras.falhouHoje()) { renderRecaida(); return; }
+
+  if (!Regras.liberado(atual)) {
+    const feitos = Regras.concluidos();
+    document.getElementById("e-titulo").textContent =
+      feitos === 0 ? "Volte amanhã." : "Dia " + feitos + " concluído.";
+    document.getElementById("e-texto").textContent =
+      "O dia " + atual + " abre amanhã. Não adianta adiantar — o intervalo faz parte do método.";
+    mostrar("v-espera");
+    return;
+  }
+
+  renderDia(atual);
+}
+
+/* ==========================================================
+   AÇÕES DO USUÁRIO
+   ========================================================== */
+async function marcarFeito() {
+  const dia = Regras.diaAtual();
+  App.prog.dias[dia] = { status: "feito", data: HOJE() };
+  await Store.salvar(App.email, App.prog);
+  Eventos.registra("dia_concluido", dia);
+  if (dia === 21) Eventos.registra("terminou_protocolo", 21);
+  renderMapa();
+  const novo = Regras.diaAtual();
+  if (novo > 21) { renderFinal(); return; }
+  document.getElementById("e-titulo").textContent = "Dia " + dia + " concluído.";
+  document.getElementById("e-texto").textContent =
+    "O dia " + novo + " abre amanhã. Não adianta adiantar — o intervalo faz parte do método.";
+  mostrar("v-espera");
+}
+
+async function marcarNaoFiz() {
+  const dia = Regras.diaAtual();
+  App.prog.falhas.push({ dia, data: HOJE() });
+  await Store.salvar(App.email, App.prog);   // dia NÃO avança, progresso NÃO zera
+  Eventos.registra("dia_falhado", dia);
+  renderMapa();
+  renderRecaida();
+}
+
+/* ==========================================================
+   LOGIN
+   ========================================================== */
+function erroLogin(msg) {
+  document.getElementById("login-erro").innerHTML =
+    msg ? `<div class="erro">${msg}</div>` : "";
+}
+
+async function enviarCodigo() {
+  const email = document.getElementById("in-email").value.trim().toLowerCase();
+  if (!email || !email.includes("@")) { erroLogin("Digite um e-mail válido."); return; }
+  erroLogin("");
+  const btn = document.getElementById("btn-enviar");
+  btn.disabled = true; btn.textContent = "Enviando…";
+
+  if (App.modo === "demo") {
+    await entrar(email);
+    return;
+  }
+
+  const { error } = await App.sb.auth.signInWithOtp({
+    email, options: { shouldCreateUser: true }
+  });
+  btn.disabled = false; btn.textContent = "Receber código";
+  if (error) { erroLogin("Não consegui enviar o código. Tente de novo em instantes."); return; }
+
+  document.getElementById("email-eco").textContent = email;
+  document.getElementById("passo-email").style.display = "none";
+  document.getElementById("passo-codigo").style.display = "block";
+  document.getElementById("in-codigo").focus();
+}
+
+async function validarCodigo() {
+  const email = document.getElementById("in-email").value.trim().toLowerCase();
+  const token = document.getElementById("in-codigo").value.trim();
+  if (token.length < 6) { erroLogin("O código tem 6 dígitos."); return; }
+  erroLogin("");
+  const btn = document.getElementById("btn-validar");
+  btn.disabled = true; btn.textContent = "Verificando…";
+
+  const { error } = await App.sb.auth.verifyOtp({ email, token, type: "email" });
+  btn.disabled = false; btn.textContent = "Entrar";
+  if (error) { erroLogin("Código inválido ou expirado. Peça um novo."); return; }
+
+  await entrar(email);
+}
+
+async function entrar(email) {
+  const acesso = await verificaAcesso(email);
+
+  if (!acesso.ok) {
+    if (App.modo === "supabase") await App.sb.auth.signOut();
+    localStorage.removeItem("cr_email");
+    App.email = null; App.nivel = null; App.prog = null;
+    document.getElementById("topo").style.display = "none";
+    document.getElementById("passo-email").style.display = "block";
+    document.getElementById("passo-codigo").style.display = "none";
+    erroLogin(MSG_ACESSO[acesso.motivo] || MSG_ACESSO.erro);
+    mostrar("v-login");
+    return false;
+  }
+
+  App.email = email;
+  App.nivel = acesso.nivel;
+  localStorage.setItem("cr_email", email);
+  App.prog = await Store.carregar(email);
+  Eventos.registra("abriu_app");
+  document.getElementById("topo").style.display = "block";
+  renderMapa();
+  irParaOndeDeve();
+  return true;
+}
+
+async function sair() {
+  if (App.modo === "supabase" && App.sb) await App.sb.auth.signOut();
+  localStorage.removeItem("cr_email");
+  App.email = null; App.nivel = null; App.prog = null;
+  document.getElementById("topo").style.display = "none";
+  document.getElementById("passo-email").style.display = "block";
+  document.getElementById("passo-codigo").style.display = "none";
+  document.getElementById("in-codigo").value = "";
+  erroLogin("");
+  mostrar("v-login");
+}
+
+/* ==========================================================
+   EVENTOS
+   ========================================================== */
+document.getElementById("btn-enviar").onclick = enviarCodigo;
+document.getElementById("btn-validar").onclick = validarCodigo;
+document.getElementById("btn-voltar-email").onclick = () => {
+  document.getElementById("passo-email").style.display = "block";
+  document.getElementById("passo-codigo").style.display = "none";
+  erroLogin("");
+};
+document.getElementById("in-email").addEventListener("keydown", e => {
+  if (e.key === "Enter") enviarCodigo();
+});
+document.getElementById("in-codigo").addEventListener("keydown", e => {
+  if (e.key === "Enter") validarCodigo();
+});
+
+document.getElementById("btn-fiz").onclick = marcarFeito;
+document.getElementById("btn-nao-fiz").onclick = marcarNaoFiz;
+document.getElementById("btn-voltar-mapa").onclick = () => { renderMapa(); mostrar("v-mapa"); };
+document.getElementById("btn-espera-mapa").onclick = () => { renderMapa(); mostrar("v-mapa"); };
+document.getElementById("btn-recaida-ok").onclick = () => { renderMapa(); mostrar("v-mapa"); };
+document.getElementById("btn-final-mapa").onclick = () => { renderMapa(); mostrar("v-mapa"); };
+document.getElementById("btn-abrir-dia").onclick = irParaOndeDeve;
+document.getElementById("btn-sair").onclick = sair;
+
+/* ==========================================================
+   INICIALIZAÇÃO
+   ========================================================== */
+async function iniciar() {
+  const temSb = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY;
+
+  if (temSb) {
+    await new Promise((ok, falha) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
+      s.onload = ok; s.onerror = falha;
+      document.head.appendChild(s);
+    }).catch(() => {});
+    if (window.supabase) {
+      App.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+      App.modo = "supabase";
+    }
+  }
+
+  document.getElementById("boot").style.display = "none";
+
+  // sessão existente? entrar() revalida o acesso e cai no login sozinho
+  // se a compra tiver sido reembolsada desde a última abertura.
+  if (App.modo === "supabase") {
+    const { data } = await App.sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      await entrar(data.session.user.email);
+      return;
+    }
+  } else {
+    const salvo = localStorage.getItem("cr_email");
+    if (salvo) { await entrar(salvo); return; }
+  }
+
+  mostrar("v-login");
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () =>
+    navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+iniciar();
+</script>
+</body>
+</html>
