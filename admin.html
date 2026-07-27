@@ -75,16 +75,11 @@ label{display:block;font-size:13px;color:var(--txt-2);margin-bottom:7px}
 <!-- ================= LOGIN ================= -->
 <div id="login" class="esconde">
   <h1>Painel</h1>
-  <p class="sub">Acesso restrito. Entre com o e-mail cadastrado como administrador.</p>
+  <p class="sub">Acesso restrito. Use o e-mail e a senha que você criou no Supabase.</p>
   <div id="login-erro"></div>
-  <div id="p-email">
-    <div class="campo"><label>E-mail</label><input type="email" id="in-email" placeholder="voce@email.com"></div>
-    <button class="primario" id="btn-enviar" style="width:100%">Receber código</button>
-  </div>
-  <div id="p-codigo" class="esconde">
-    <div class="campo"><label>Código de 6 dígitos</label><input type="text" id="in-codigo" maxlength="6" inputmode="numeric" placeholder="000000"></div>
-    <button class="primario" id="btn-validar" style="width:100%">Entrar</button>
-  </div>
+  <div class="campo"><label>E-mail</label><input type="email" id="in-email" placeholder="voce@email.com" autocomplete="username"></div>
+  <div class="campo"><label>Senha</label><input type="password" id="in-senha" placeholder="sua senha" autocomplete="current-password"></div>
+  <button class="primario" id="btn-entrar" style="width:100%">Entrar</button>
 </div>
 
 <!-- ================= PAINEL ================= -->
@@ -389,26 +384,18 @@ $("btn-buscar").onclick = async () => {
    ========================================================== */
 function erroLogin(m) { $("login-erro").innerHTML = m ? `<div class="erro">${m}</div>` : ""; }
 
-$("btn-enviar").onclick = async () => {
+/* Login por senha, não por código: assim o painel não depende
+   de envio de e-mail. Você cria esse usuário no próprio Supabase,
+   em Authentication > Users > Add user. */
+$("btn-entrar").onclick = async () => {
   const email = $("in-email").value.trim().toLowerCase();
-  if (!email.includes("@")) { erroLogin("Digite um e-mail válido."); return; }
+  const senha = $("in-senha").value;
+  if (!email.includes("@") || !senha) { erroLogin("Preencha e-mail e senha."); return; }
   erroLogin("");
-  const b = $("btn-enviar"); b.disabled = true; b.textContent = "Enviando…";
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  b.disabled = false; b.textContent = "Receber código";
-  if (error) { erroLogin("Não consegui enviar o código. Confira o e-mail."); return; }
-  $("p-email").classList.add("esconde");
-  $("p-codigo").classList.remove("esconde");
-  $("in-codigo").focus();
-};
-
-$("btn-validar").onclick = async () => {
-  const email = $("in-email").value.trim().toLowerCase();
-  const token = $("in-codigo").value.trim();
-  const b = $("btn-validar"); b.disabled = true; b.textContent = "Verificando…";
-  const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
+  const b = $("btn-entrar"); b.disabled = true; b.textContent = "Entrando…";
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
   b.disabled = false; b.textContent = "Entrar";
-  if (error) { erroLogin("Código inválido ou expirado."); return; }
+  if (error) { erroLogin("E-mail ou senha incorretos."); return; }
   await abrirPainel();
 };
 
@@ -417,8 +404,8 @@ $("btn-sair").onclick = async () => {
   location.reload();
 };
 $("btn-atualizar").onclick = carregarTudo;
-$("in-codigo").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-validar").click(); });
-$("in-email").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-enviar").click(); });
+$("in-email").addEventListener("keydown", e => { if (e.key === "Enter") $("in-senha").focus(); });
+$("in-senha").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-entrar").click(); });
 
 /* ==========================================================
    INICIALIZAÇÃO
