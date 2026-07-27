@@ -1,0 +1,199 @@
+// ============================================================
+// CÉREBRO RICO — Webhook da Kirvano
+// Supabase Edge Function (Deno)
+//
+// Libera acesso automaticamente quando a compra é aprovada e
+// revoga quando há reembolso, chargeback ou cancelamento.
+// Registra TODOS os eventos para as métricas.
+//
+// Publicar:  supabase functions deploy kirvano-webhook --no-verify-jwt
+// ============================================================
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ------------------------------------------------------------
+// MAPA DE OFERTAS
+// Preencha com os offer_id da Kirvano. Você encontra cada um
+// no primeiro webhook que chegar (veja webhook_log) ou na URL
+// da oferta dentro do painel da Kirvano.
+//
+// Enquanto estiver vazio, qualquer compra aprovada libera o
+// nível 'protocolo21'. Isso é seguro para começar.
+// ------------------------------------------------------------
+const OFERTAS: Record<string, string> = {
+  // "cole-o-offer-id-do-protocolo-aqui": "protocolo21",
+  // "cole-o-offer-id-do-bump-aqui":      "bump",
+  // "cole-o-offer-id-do-upsell-aqui":    "protocolo90",
+  // "cole-o-offer-id-da-assinatura-aqui":"assinante",
+};
+
+// hierarquia: nunca rebaixar quem já tem nível maior
+const PESO: Record<string, number> = {
+  protocolo21: 1,
+  protocolo90: 2,
+  assinante: 3,
+};
+
+// ------------------------------------------------------------
+// Utilitários
+// ------------------------------------------------------------
+
+/** "R$ 169,80" -> 16980 */
+function paraCentavos(valor: unknown): number | null {
+  if (typeof valor === "number") return Math.round(valor * 100);
+  if (typeof valor !== "string") return null;
+  const limpo = valor.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(limpo);
+  return isNaN(n) ? null : Math.round(n * 100);
+}
+
+/** Descobre o nível de acesso a partir dos produtos comprados */
+function nivelDaCompra(produtos: any[]): string {
+  let melhor = "protocolo21";
+  for (const p of produtos ?? []) {
+    const mapeado = OFERTAS[p?.offer_id] ?? OFERTAS[p?.id];
+    if (!mapeado || mapeado === "bump") continue;
+    if ((PESO[mapeado] ?? 0) > (PESO[melhor] ?? 0)) melhor = mapeado;
+  }
+  return melhor;
+}
+
+/** Lê o token de autenticação em qualquer lugar que a Kirvano possa mandar */
+function tokenRecebido(req: Request): string | null {
+  const h = req.headers;
+  const url = new URL(req.url);
+  return (
+    h.get("security-token") ??
+    h.get("x-kirvano-token") ??
+    h.get("kirvano-token") ??
+    h.get("x-webhook-token") ??
+    h.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    url.searchParams.get("token") ??
+    null
+  );
+}
+
+const json = (corpo: unknown, status = 200) =>
+  new Response(JSON.stringify(corpo), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
+// ------------------------------------------------------------
+// Handler
+// ------------------------------------------------------------
+Deno.serve(async (req: Request) => {
+  if (req.method !== "POST") return json({ erro: "use POST" }, 405);
+
+  const db = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } },
+  );
+
+  // ---- 1. autenticação --------------------------------------
+  const esperado = Deno.env.get("KIRVANO_TOKEN");
+  if (esperado && tokenRecebido(req) !== esperado) {
+    await db.from("webhook_log").insert({
+      evento: "TOKEN_INVALIDO", ok: false,
+      erro: "token ausente ou incorreto",
+    });
+    return json({ erro: "nao autorizado" }, 401);
+  }
+
+  // ---- 2. corpo ---------------------------------------------
+  let corpo: any;
+  try {
+    corpo = await req.json();
+  } catch {
+    return json({ erro: "json invalido" }, 400);
+  }
+
+  const evento: string = corpo?.event ?? "DESCONHECIDO";
+  const email: string | null = (corpo?.customer?.email ?? "").toLowerCase().trim() || null;
+  const produtos: any[] = Array.isArray(corpo?.products) ? corpo.products : [];
+
+  try {
+    // ---- 3. registra o evento financeiro --------------------
+    // onConflict garante idempotência: reenvio não duplica.
+    await db.from("compras").upsert({
+      sale_id: corpo?.sale_id ?? null,
+      checkout_id: corpo?.checkout_id ?? null,
+      evento,
+      email,
+      nome: corpo?.customer?.name ?? null,
+      telefone: corpo?.customer?.phone_number ?? null,
+      valor_centavos: paraCentavos(corpo?.total_price),
+      metodo: corpo?.payment_method ?? corpo?.payment?.method ?? null,
+      tipo: corpo?.type ?? null,
+      status: corpo?.status ?? null,
+      tem_bump: produtos.some((p) => p?.is_order_bump === true),
+      qtd_produtos: produtos.length,
+      produtos,
+      utm: corpo?.utm ?? null,
+    }, { onConflict: "sale_id,evento", ignoreDuplicates: true });
+
+    // ---- 4. reage ao evento ---------------------------------
+    if (email) {
+      switch (evento) {
+        // ---- libera acesso ----
+        case "SALE_APPROVED":
+        case "SUBSCRIPTION_RENEWED": {
+          const nivel = nivelDaCompra(produtos);
+
+          const { data: atual } = await db
+            .from("acessos").select("nivel").eq("email", email).maybeSingle();
+
+          // nunca rebaixa: quem comprou o upsell não volta pro básico
+          const nivelFinal =
+            atual && (PESO[atual.nivel] ?? 0) > (PESO[nivel] ?? 0) ? atual.nivel : nivel;
+
+          await db.from("acessos").upsert({
+            email,
+            nome: corpo?.customer?.name ?? null,
+            telefone: corpo?.customer?.phone_number ?? null,
+            nivel: nivelFinal,
+            status: "ativo",
+            revogado_em: null,
+            origem: "kirvano",
+          }, { onConflict: "email" });
+          break;
+        }
+
+        // ---- revoga acesso ----
+        case "SALE_REFUNDED":
+        case "SALE_CHARGEBACK":
+        case "SUBSCRIPTION_CANCELED": {
+          const novoStatus =
+            evento === "SALE_REFUNDED" ? "reembolsado"
+            : evento === "SALE_CHARGEBACK" ? "chargeback"
+            : "cancelado";
+
+          await db.from("acessos")
+            .update({ status: novoStatus, revogado_em: new Date().toISOString() })
+            .eq("email", email);
+          break;
+        }
+
+        // ---- só registra ----
+        // PIX_GENERATED, PIX_EXPIRED, BANK_SLIP_*, SALE_REFUSED,
+        // ABANDONED_CART, SUBSCRIPTION_EXPIRED
+        default:
+          break;
+      }
+    }
+
+    await db.from("webhook_log").insert({ evento, email, ok: true, payload: corpo });
+    return json({ ok: true, evento });
+
+  } catch (e) {
+    await db.from("webhook_log").insert({
+      evento, email, ok: false,
+      erro: String((e as Error)?.message ?? e),
+      payload: corpo,
+    });
+    // Responde 200 de propósito: erro nosso não deve fazer a Kirvano
+    // reenviar em loop. O problema fica registrado em webhook_log.
+    return json({ ok: false, registrado: true });
+  }
+});
