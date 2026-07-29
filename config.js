@@ -20,7 +20,7 @@
 
 window.CEREBRO_RICO = {
 
-  SUPABASE_URL: "https://mtpyrperjnecjephrtbc.supabase.co",
+  SUPABASE_URL: "https://mtpyrperjnecjephrtbc.supabase.co/rest/v1/",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10cHlycGVyam5lY2plcGhydGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTU5MDUsImV4cCI6MjA5MzkzMTkwNX0.UhIOk1sVLnbCi4vpwROWFzSrJ_753brEIwOqGkRJHfA"
 
 };
