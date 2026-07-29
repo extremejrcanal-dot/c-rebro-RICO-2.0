@@ -368,10 +368,21 @@ const API = {
   endereco() {
     return CONFIG.SUPABASE_URL.replace(/\/+$/, "") + "/functions/v1/acesso";
   },
+
+  // Manda a chave pública junto. Assim funciona tanto com a
+  // verificação de JWT ligada quanto desligada — e você não
+  // depende de achar aquela configuração no painel.
+  cabecalhos() {
+    const h = { "content-type": "application/json" };
+    const k = CONFIG.SUPABASE_ANON_KEY;
+    if (k) { h["apikey"] = k; h["Authorization"] = "Bearer " + k; }
+    return h;
+  },
+
   async chama(acao, dados) {
     const r = await fetch(this.endereco(), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.cabecalhos(),
       body: JSON.stringify({ acao, email: App.email, token: App.token, ...dados })
     });
     return await r.json();
@@ -653,7 +664,7 @@ async function entrarComEmail(email, silencioso) {
   try {
     r = await fetch(API.endereco(), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: API.cabecalhos(),
       body: JSON.stringify({ acao: "entrar", email })
     }).then(x => x.json());
   } catch (e) {
