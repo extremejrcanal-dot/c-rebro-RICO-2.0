@@ -1,0 +1,1009 @@
+# SynapseX
+
+Landing page de página única — React + TypeScript + Vite + Tailwind + Framer Motion.
+
+## Rodar
+
+```bash
+npm install
+npm run dev
+```
+
+Abre em `http://localhost:5173`.
+
+## Publicar
+
+```bash
+npm run build
+```
+
+Gera a pasta `dist/`. Suba o conteúdo dela em qualquer hospedagem estática
+(Netlify, Vercel, Cloudflare Pages, GitHub Pages, cPanel).
+
+## Estrutura
+
+```
+src/
+  App.tsx                 monta as seções e controla o entranceComplete (800ms)
+  videos.ts               as 5 URLs do CloudFront
+  components/
+    Navbar.tsx            pill expansível 48→290px, versão mobile separada
+    ScrambleIn.tsx        revelação de entrada, 25ms, 0.5 char/frame
+    ScrambleText.tsx      scramble no hover, 4 frames/char
+    SynapseXLogo.tsx      marca com simetria rotacional de 4 dobras
+    SquashHamburger.tsx   spring 300/20
+  sections/
+    Hero.tsx              vídeo com scrub por mouse, sensibilidade 0.8
+    Cinematic.tsx         texto 3D com useScroll + useSpring 15/32/1.8
+    Metrics.tsx           3 métricas com stagger de 0.15s
+    Technology.tsx        grid 2/4 colunas
+    Architecture.tsx      fundo preto, 3 cards de camada
+    Footer.tsx            vídeo à esquerda, texto à direita
+```
+
+## Notas de implementação
+
+**Scrub do hero.** O vídeo inicia pausado em 0. `mousemove` acumula `movementX`
+convertido em segundos pela duração do vídeo, multiplicado por 0.8. Os seeks são
+encadeados pelo evento `seeked` — só dispara o próximo quando o anterior termina,
+evitando perda de frames.
+
+**Texto 3D da seção 2.** `useScroll` com offset `["start end", "end start"]`,
+passado por `useSpring(15, 32, 1.8)`, depois `useTransform` para y de 60 a -120,
+montado com `useMotionTemplate` em `rotateX(24deg) translateY() translateZ(15px)`.
+O container tem `perspective: 400`.
+
+**Fontes.** Todas as chaves do Tailwind (`sans`, `serif`, `mono`) apontam para
+Space Mono. Anton SC é usada só na marca d'água "TRANSCENDENCE" do hero.
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SynapseX — Neural-AI Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Anton+SC&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+{
+  "name": "synapsex",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.8"
+  }
+}
+import { useEffect, useState } from "react";
+import Navbar from "./components/Navbar";
+import Hero from "./sections/Hero";
+import Cinematic from "./sections/Cinematic";
+import Metrics from "./sections/Metrics";
+import Technology from "./sections/Technology";
+import Architecture from "./sections/Architecture";
+import Footer from "./sections/Footer";
+
+export default function App() {
+  const [entranceComplete, setEntranceComplete] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setEntranceComplete(true), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className="bg-black text-white"
+      style={{ fontFamily: '"Space Mono", monospace' }}
+    >
+      <Navbar entranceComplete={entranceComplete} />
+      <Hero entranceComplete={entranceComplete} />
+      <Cinematic />
+      <Metrics />
+      <Technology />
+      <Architecture />
+      <Footer />
+    </div>
+  );
+}
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import SynapseXLogo from "./SynapseXLogo";
+import SquashHamburger from "./SquashHamburger";
+import ScrambleText from "./ScrambleText";
+
+const SPRING = { type: "spring" as const, stiffness: 350, damping: 28 };
+
+interface Props {
+  entranceComplete: boolean;
+}
+
+export default function Navbar({ entranceComplete }: Props) {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState<string | null>(null);
+
+  const goTo = (multiplier: number) => {
+    window.scrollTo({ top: window.innerHeight * multiplier, behavior: "smooth" });
+    setOpen(false);
+  };
+
+  return (
+    <motion.nav
+      className="fixed top-0 left-0 right-0 z-50 h-20 w-full bg-transparent"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: entranceComplete ? 1 : 0 }}
+      transition={{ duration: 0.8 }}
+    >
+      {/* ---------- desktop ---------- */}
+      <div className="hidden sm:flex h-full items-center justify-between px-4 sm:px-6 md:px-8">
+        <div className="flex items-center gap-2">
+          <motion.div
+            className={`${open ? "hidden md:flex" : "flex"} h-12 items-center gap-2.5 px-5 rounded-[14px] bg-white/15 backdrop-blur-md cursor-pointer`}
+            whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.22)" }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <SynapseXLogo size={18} className="text-white" />
+            <span className="text-[16px] font-medium tracking-tight text-white">SynapseX</span>
+          </motion.div>
+
+          <motion.div
+            className="h-12 rounded-[14px] bg-white/15 backdrop-blur-md flex items-center overflow-hidden"
+            animate={{ width: open ? 290 : 48 }}
+            transition={SPRING}
+          >
+            <button
+              onClick={() => setOpen((v) => !v)}
+              aria-label="Menu"
+              className={
+                open
+                  ? "w-9 h-9 ml-1.5 rounded-[11px] bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors"
+                  : "w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0"
+              }
+            >
+              <SquashHamburger open={open} />
+            </button>
+
+            <AnimatePresence>
+              {open && (
+                <motion.div
+                  className="flex items-center gap-6 pl-5 pr-4 whitespace-nowrap"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <button
+                    onMouseEnter={() => setHover("about")}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => goTo(1)}
+                    className="text-[16px] font-normal text-white/85 hover:text-white transition-colors"
+                  >
+                    <ScrambleText text="About" isHovered={hover === "about"} />
+                  </button>
+                  <button
+                    onMouseEnter={() => setHover("metrics")}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => goTo(2)}
+                    className="text-[16px] font-normal text-white/85 hover:text-white transition-colors"
+                  >
+                    <ScrambleText text="Metrics" isHovered={hover === "metrics"} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+
+        <motion.button
+          className="h-12 px-6 bg-white rounded-full flex items-center gap-2 text-black"
+          whileHover={{ scale: 1.03, backgroundColor: "#e2e2e6" }}
+          whileTap={{ scale: 0.97 }}
+          onMouseEnter={() => setHover("dl")}
+          onMouseLeave={() => setHover(null)}
+        >
+          <i className="bi bi-apple text-[17px]" />
+          <ScrambleText text="Download" isHovered={hover === "dl"} className="text-[15px] font-medium" />
+        </motion.button>
+      </div>
+
+      {/* ---------- mobile ---------- */}
+      <div className="flex sm:hidden h-full items-center justify-between px-4 gap-2">
+        <motion.div
+          className="h-9 flex items-center gap-2 rounded-[10px] bg-white/15 backdrop-blur-md overflow-hidden"
+          animate={{ width: open ? 0 : 122, paddingLeft: open ? 0 : 12, paddingRight: open ? 0 : 12 }}
+          transition={SPRING}
+        >
+          <SynapseXLogo size={15} className="text-white shrink-0" />
+          <span className="text-[13px] font-medium tracking-tight text-white whitespace-nowrap">SynapseX</span>
+        </motion.div>
+
+        <motion.div
+          className="h-9 rounded-[10px] bg-white/15 backdrop-blur-md flex items-center overflow-hidden"
+          animate={{ width: open ? "100%" : 36 }}
+          transition={SPRING}
+        >
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Menu"
+            className="w-9 h-9 flex items-center justify-center shrink-0"
+          >
+            <SquashHamburger open={open} mobile />
+          </button>
+
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                className="flex items-center gap-5 pl-3 whitespace-nowrap"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 15 }}
+                transition={{ duration: 0.25 }}
+              >
+                <button onClick={() => goTo(1)} className="text-[13px] text-white/85">About</button>
+                <button onClick={() => goTo(2)} className="text-[13px] text-white/85">Metrics</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        <button className="h-9 px-3.5 bg-white rounded-full flex items-center gap-1.5 text-black shrink-0">
+          <i className="bi bi-apple text-[14px]" />
+          <span className="text-[13px] font-medium">Download</span>
+        </button>
+      </div>
+    </motion.nav>
+  );
+}
+
+import { useEffect, useRef, useState } from "react";
+
+const CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~|}{[]:;?><";
+
+interface Props {
+  text: string;
+  delay?: number;
+  triggered: boolean;
+}
+
+/**
+ * Entrance reveal: after `delay` ms, characters resolve left-to-right
+ * at 0.5 chars per frame, 25ms per frame. Unresolved characters within
+ * 3 positions of the cursor show random glyphs; beyond that, nothing.
+ */
+export default function ScrambleIn({ text, delay = 0, triggered }: Props) {
+  const [output, setOutput] = useState("");
+  const [started, setStarted] = useState(false);
+  const frame = useRef(0);
+  const interval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!triggered) return;
+    const t = setTimeout(() => setStarted(true), delay);
+    return () => clearTimeout(t);
+  }, [triggered, delay]);
+
+  useEffect(() => {
+    if (!started) return;
+
+    frame.current = 0;
+    interval.current = setInterval(() => {
+      const revealed = frame.current * 0.5;
+
+      const next = text
+        .split("")
+        .map((ch, i) => {
+          if (ch === " ") return " ";
+          if (i < revealed) return ch;
+          if (i < revealed + 3)
+            return CHARS[Math.floor(Math.random() * CHARS.length)];
+          return "";
+        })
+        .join("");
+
+      setOutput(next);
+
+      if (revealed >= text.length) {
+        setOutput(text);
+        if (interval.current) clearInterval(interval.current);
+      }
+      frame.current += 1;
+    }, 25);
+
+    return () => {
+      if (interval.current) clearInterval(interval.current);
+    };
+  }, [started, text]);
+
+  if (!triggered) return <>&nbsp;</>;
+  return <>{output || "\u00A0"}</>;
+}
+
+import { useEffect, useRef, useState } from "react";
+
+const CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~|}{[]:;?><";
+
+interface Props {
+  text: string;
+  isHovered: boolean;
+  className?: string;
+}
+
+/**
+ * Hover-driven scramble: all characters randomize, then resolve
+ * left-to-right at 4 frames per character, 25ms per frame.
+ * Unhovering resets instantly.
+ */
+export default function ScrambleText({ text, isHovered, className }: Props) {
+  const [output, setOutput] = useState(text);
+  const frame = useRef(0);
+  const interval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (interval.current) clearInterval(interval.current);
+
+    if (!isHovered) {
+      setOutput(text);
+      return;
+    }
+
+    frame.current = 0;
+    interval.current = setInterval(() => {
+      const revealed = frame.current / 4;
+
+      const next = text
+        .split("")
+        .map((ch, i) => {
+          if (ch === " ") return " ";
+          if (i < revealed) return ch;
+          return CHARS[Math.floor(Math.random() * CHARS.length)];
+        })
+        .join("");
+
+      setOutput(next);
+
+      if (revealed >= text.length) {
+        setOutput(text);
+        if (interval.current) clearInterval(interval.current);
+      }
+      frame.current += 1;
+    }, 25);
+
+    return () => {
+      if (interval.current) clearInterval(interval.current);
+    };
+  }, [isHovered, text]);
+
+  return <span className={className}>{output}</span>;
+}
+
+import { motion } from "framer-motion";
+
+interface Props {
+  open: boolean;
+  mobile?: boolean;
+}
+
+const SPRING = { type: "spring" as const, stiffness: 300, damping: 20 };
+
+export default function SquashHamburger({ open, mobile = false }: Props) {
+  const w = mobile ? 15 : 18;
+  const h = mobile ? 10 : 12;
+  const bar = mobile ? 1.2 : 1.5;
+  const mid = h / 2 - bar / 2;
+
+  return (
+    <div className="relative" style={{ width: w, height: h }}>
+      <motion.span
+        className="absolute left-0 bg-white rounded-full"
+        style={{ width: w, height: bar, top: 0 }}
+        animate={open ? { top: mid, rotate: 45 } : { top: 0, rotate: 0 }}
+        transition={SPRING}
+      />
+      <motion.span
+        className="absolute left-0 bg-white rounded-full"
+        style={{ width: w, height: bar, top: mid }}
+        animate={open ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+        transition={SPRING}
+      />
+      <motion.span
+        className="absolute left-0 bg-white rounded-full"
+        style={{ width: w, height: bar, top: h - bar }}
+        animate={open ? { top: mid, rotate: -45 } : { top: h - bar, rotate: 0 }}
+        transition={SPRING}
+      />
+    </div>
+  );
+}
+
+interface Props {
+  className?: string;
+  size?: number;
+}
+
+const PATH =
+  "M 1.5,23 L 1.5,33 C 1.5,38.5 6,43 11.5,43 L 16.5,43 C 22,43 26.5,38.5 26.5,33 Q 28,28 33,26.5 C 38.5,26.5 43,22 43,16.5 L 43,11.5 C 43,6 38.5,1.5 33,1.5 L 23,1.5 Q 12,12 1.5,23 Z";
+
+/** 4-fold rotationally symmetric mark. */
+export default function SynapseXLogo({ className = "", size = 18 }: Props) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="-50 -50 100 100"
+      className={className}
+      aria-hidden="true"
+    >
+      {[0, 90, 180, 270].map((deg) => (
+        <path key={deg} d={PATH} fill="currentColor" transform={`rotate(${deg})`} />
+      ))}
+    </svg>
+  );
+}
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Anton+SC&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Space Mono", monospace;
+  --font-serif: "Space Mono", monospace;
+  --font-mono: "Space Mono", monospace;
+  --font-display: "Space Mono", monospace;
+  --font-body: "Space Mono", monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: #000;
+  color: #fff;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: "Space Mono", monospace;
+}
+
+/* Lenis smooth scroll utilities */
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+import { motion } from "framer-motion";
+
+const LAYERS = [
+  ["Layer 1", "Capture"],
+  ["Layer 2", "Process"],
+  ["Layer 3", "Interface"],
+];
+
+export default function Architecture() {
+  return (
+    <section className="relative w-full min-h-screen bg-black flex items-center justify-center">
+      <div className="max-w-3xl mx-auto px-6 py-32 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 1 }}
+        >
+          <p className="text-white/40 text-[13px] sm:text-[14px] tracking-[0.2em] uppercase mb-8">
+            Architecture
+          </p>
+          <h2 className="text-white font-light text-[clamp(28px,6vw,56px)] leading-[1.15] tracking-[-0.02em] mb-10">
+            Three layers. Zero friction.
+          </h2>
+          <p className="text-white/45 text-[15px] sm:text-[17px] leading-relaxed max-w-xl mx-auto">
+            Sensor layer captures raw bioelectric signals. Processing layer
+            isolates intent. Interface layer delivers structured output to any
+            connected system.
+          </p>
+        </motion.div>
+
+        <motion.div
+          className="mt-20 flex flex-col items-center gap-4"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 1.2, delay: 0.4 }}
+        >
+          {LAYERS.map(([n, name]) => (
+            <div
+              key={n}
+              className="w-full max-w-md h-[72px] border border-white/10 rounded-lg flex items-center justify-between px-6"
+            >
+              <span className="text-white/30 text-[12px] tracking-[0.15em] uppercase">
+                {n}
+              </span>
+              <span className="text-white text-[16px] sm:text-[18px] font-light">
+                {name}
+              </span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+import { useRef } from "react";
+import {
+  motion,
+  useScroll,
+  useSpring,
+  useTransform,
+  useMotionTemplate,
+} from "framer-motion";
+import { VIDEOS } from "../videos";
+
+const COPY =
+  "A neural-AI interface built on the architecture of the human nervous system. SynapseX translates synaptic activity into computational intelligence. Every signal becomes measurable, structured, and visible. It continuously reconstructs internal state as a dynamic neural map. Biological noise is filtered into actionable cognitive patterns.";
+
+export default function Cinematic() {
+  const ref = useRef<HTMLElement>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+
+  const smooth = useSpring(scrollYProgress, {
+    stiffness: 15,
+    damping: 32,
+    mass: 1.8,
+  });
+
+  const y = useTransform(smooth, [0, 1], [60, -120]);
+  const opacity = useTransform(smooth, [0.3, 0.5], [0, 1]);
+  const transform = useMotionTemplate`rotateX(24deg) translateY(${y}px) translateZ(15px)`;
+
+  return (
+    <section
+      ref={ref}
+      className="relative w-full h-screen h-[100dvh] overflow-hidden flex items-center justify-center"
+    >
+      <video
+        src={VIDEOS.second}
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      <div
+        className="absolute top-0 left-0 right-0 z-10 pointer-events-none"
+        style={{
+          height: 180,
+          background: "linear-gradient(to bottom, #010103, transparent)",
+        }}
+      />
+
+      <div
+        className="relative z-20 max-w-5xl mx-auto"
+        style={{ perspective: 400 }}
+      >
+        <motion.p
+          style={{ transform, opacity }}
+          className="font-sans font-normal text-[22px] sm:text-[30px] md:text-[36px] lg:text-[42px] text-white leading-[1.35] tracking-[-0.02em] select-none px-6 sm:px-12 text-center"
+        >
+          {COPY}
+        </motion.p>
+      </div>
+    </section>
+  );
+}
+
+import SynapseXLogo from "../components/SynapseXLogo";
+import { VIDEOS } from "../videos";
+
+export default function Footer() {
+  return (
+    <footer className="relative w-full bg-black overflow-hidden">
+      <div className="flex flex-col md:flex-row min-h-[400px]">
+        <div className="w-full md:w-1/2 h-[300px] md:h-auto">
+          <video
+            src={VIDEOS.footer}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        <div className="w-full md:w-1/2 flex flex-col justify-between p-10 sm:p-16">
+          <div>
+            <div className="flex items-center gap-2.5 mb-8">
+              <SynapseXLogo size={18} className="text-white/70" />
+              <span className="text-[15px] font-medium text-white/70 tracking-tight">
+                SynapseX
+              </span>
+            </div>
+            <p className="text-white/40 text-[14px] sm:text-[15px] leading-relaxed max-w-sm">
+              The next evolution of human-machine interaction. Built for those who
+              refuse to be limited by biology alone.
+            </p>
+          </div>
+
+          <p className="text-white/25 text-[12px] mt-12">
+            © 2026 SynapseX Labs. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import ScrambleIn from "../components/ScrambleIn";
+import { VIDEOS } from "../videos";
+
+const SENSITIVITY = 0.8;
+
+interface Props {
+  entranceComplete: boolean;
+}
+
+export default function Hero({ entranceComplete }: Props) {
+  const video = useRef<HTMLVideoElement>(null);
+  const target = useRef(0);
+  const seeking = useRef(false);
+
+  /* Mouse-scrub: horizontal movement scrubs the timeline.
+     Seeks are chained through the `seeked` event so frames are not dropped. */
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+
+    const step = () => {
+      if (seeking.current) return;
+      const clamped = Math.max(0, Math.min(target.current, v.duration || 0));
+      if (Math.abs(clamped - v.currentTime) < 0.001) return;
+      seeking.current = true;
+      v.currentTime = clamped;
+    };
+
+    const onSeeked = () => {
+      seeking.current = false;
+      step();
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!v.duration) return;
+      const delta = (e.movementX / window.innerWidth) * v.duration * SENSITIVITY;
+      target.current = Math.max(0, Math.min(target.current + delta, v.duration));
+      step();
+    };
+
+    const onMeta = () => {
+      v.pause();
+      v.currentTime = 0;
+      target.current = 0;
+    };
+
+    v.addEventListener("loadedmetadata", onMeta);
+    v.addEventListener("seeked", onSeeked);
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      v.removeEventListener("loadedmetadata", onMeta);
+      v.removeEventListener("seeked", onSeeked);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, []);
+
+  return (
+    <section className="relative w-full h-screen h-[100dvh] overflow-hidden">
+      <video
+        ref={video}
+        src={VIDEOS.hero}
+        muted
+        playsInline
+        preload="auto"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      {/* dot grid */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          opacity: 0.05,
+        }}
+      />
+
+      {/* watermark */}
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+        style={{ transform: "translateY(50px)" }}
+      >
+        <span
+          style={{
+            fontFamily: '"Anton SC", sans-serif',
+            fontSize: "clamp(120px, 30vw, 521px)",
+            letterSpacing: "-4px",
+            textTransform: "uppercase",
+            opacity: 0.1,
+            backgroundImage:
+              "radial-gradient(circle, rgba(142,127,148,0) 0%, #8E7F94 70%)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Transcendence
+        </span>
+      </div>
+
+      <motion.div
+        className="relative z-10 flex h-full flex-col px-4 sm:px-6 md:px-8 pt-20 sm:pt-24 pb-8 sm:pb-12"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: entranceComplete ? 1 : 0 }}
+        transition={{ duration: 1 }}
+      >
+        <div className="flex-1" />
+
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-white font-light leading-[0.95] tracking-[-0.03em] text-[clamp(40px,10vw,100px)]">
+              <ScrambleIn text="Brain" delay={200} triggered={entranceComplete} />
+              <br />
+              <ScrambleIn text="And Body" delay={500} triggered={entranceComplete} />
+            </h1>
+
+            <motion.p
+              className="max-w-sm text-[13px] sm:text-[15px] text-white/60 leading-relaxed"
+              initial={{ opacity: 0, y: 25 }}
+              animate={entranceComplete ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.9, ease: [0.215, 0.61, 0.355, 1], delay: 0.2 }}
+            >
+              Built at the intersection of neuroscience and artificial intelligence.
+              SynapseX continuously maps neural pathways, cognitive load, and
+              physiological states into a single adaptive intelligence layer.
+            </motion.p>
+          </div>
+
+          <h1 className="text-white font-light leading-[0.95] tracking-[-0.03em] text-[clamp(40px,10vw,100px)] text-left md:text-right">
+            <ScrambleIn text="One" delay={700} triggered={entranceComplete} />
+            <br />
+            <ScrambleIn text="Network" delay={1000} triggered={entranceComplete} />
+          </h1>
+        </div>
+      </motion.div>
+    </section>
+  );
+}
+
+import { motion } from "framer-motion";
+import { VIDEOS } from "../videos";
+
+const METRICS = [
+  { value: "2.4ms", label: "Synaptic Latency" },
+  { value: "99.7%", label: "Signal Accuracy" },
+  { value: "140B", label: "Neural Parameters" },
+];
+
+export default function Metrics() {
+  return (
+    <section className="relative w-full min-h-screen overflow-hidden flex items-center justify-center">
+      <video
+        src={VIDEOS.metrics}
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      <div className="relative z-10 w-full max-w-6xl mx-auto pt-32 pb-32 px-6">
+        <motion.p
+          className="text-white/40 text-[13px] sm:text-[14px] tracking-[0.2em] uppercase mb-20 text-center"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 1.2 }}
+        >
+          Performance Metrics
+        </motion.p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8">
+          {METRICS.map((m, i) => (
+            <motion.div
+              key={m.label}
+              className="text-center"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.8, delay: i * 0.15 }}
+            >
+              <div className="text-white text-[clamp(48px,10vw,96px)] font-light tracking-[-0.04em] leading-none">
+                {m.value}
+              </div>
+              <div className="text-white/40 text-[13px] sm:text-[15px] mt-4 tracking-wide">
+                {m.label}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+import { motion } from "framer-motion";
+import { VIDEOS } from "../videos";
+
+const ITEMS = [
+  ["Cortical Mapping", "Real-time spatial reconstruction of active neural regions."],
+  ["Signal Isolation", "Separates cognitive intent from biological noise."],
+  ["State Prediction", "Anticipates cognitive transitions before they occur."],
+  ["Loop Feedback", "Closed-loop adjustment based on outcome correlation."],
+];
+
+export default function Technology() {
+  return (
+    <section className="relative w-full h-screen h-[100dvh] overflow-hidden">
+      <video
+        src={VIDEOS.tech}
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      <div className="relative z-10 flex h-full flex-col px-8 sm:px-12 md:px-16 py-12 sm:py-16">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6">
+          <motion.h2
+            className="text-white font-light text-[clamp(36px,8vw,72px)] leading-[0.95] tracking-[-0.03em]"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 1 }}
+          >
+            Adaptive
+            <br />
+            Intelligence
+          </motion.h2>
+
+          <motion.p
+            className="text-white/50 text-[13px] sm:text-[15px] leading-relaxed max-w-xs md:text-right md:pt-2"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 1, delay: 0.2 }}
+          >
+            The system learns your neural baseline within 72 hours. From there,
+            every cognitive state is mapped, predicted, and optimized in real time.
+          </motion.p>
+        </div>
+
+        <div className="flex-1" />
+
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 1, delay: 0.3 }}
+        >
+          {ITEMS.map(([title, desc], i) => (
+            <motion.div
+              key={title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, delay: i * 0.1 }}
+            >
+              <h3 className="text-white text-[14px] sm:text-[16px] font-normal mb-2">
+                {title}
+              </h3>
+              <p className="text-white/40 text-[12px] sm:text-[14px] leading-relaxed">
+                {desc}
+              </p>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+export const VIDEOS = {"hero": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_083515_290e5a10-0b95-41af-a5e2-32b6389baa4d.mp4", "second": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_092455_089c54f8-3b03-4966-9df1-e9746063d0ef.mp4", "metrics": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_095810_ecea3dd2-fc5e-4e41-8696-4219290b6589.mp4", "tech": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_095750_32a52ce0-2005-45c9-9093-41f03fde9530.mp4", "footer": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_080203_fd7f4f85-3a86-4837-8192-85e7bfe68e75.mp4"} as const;
+
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src"
+  ]
+}
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+});
